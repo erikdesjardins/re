@@ -1,12 +1,10 @@
+use crate::err::Error;
+use crate::flected::routes::respond_to_request;
+use hyper::server::Server;
+use hyper::service::{make_service_fn, service_fn};
 use std::convert::Infallible;
 use std::net::SocketAddr;
 use std::sync::Arc;
-
-use hyper::server::Server;
-use hyper::service::{make_service_fn, service_fn};
-
-use crate::err::Error;
-use crate::routes::respond_to_request;
 
 pub async fn run(addr: &SocketAddr) -> Result<(), Error> {
     let state = Arc::default();

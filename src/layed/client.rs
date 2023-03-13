@@ -1,9 +1,9 @@
-use crate::backoff::Backoff;
-use crate::config::CLIENT_BACKOFF_SECS;
-use crate::future::select_ok;
-use crate::heartbeat;
-use crate::magic;
-use crate::rw::conjoin;
+use crate::layed::backoff::Backoff;
+use crate::layed::config::CLIENT_BACKOFF_SECS;
+use crate::layed::future::select_ok;
+use crate::layed::heartbeat;
+use crate::layed::magic;
+use crate::layed::rw::conjoin;
 use std::io;
 use std::net::SocketAddr;
 use std::rc::Rc;

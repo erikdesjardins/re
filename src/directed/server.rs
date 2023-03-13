@@ -1,14 +1,12 @@
-use std::convert::Infallible;
-use std::net::SocketAddr;
-use std::sync::Arc;
-
+use crate::directed::redir::Rules;
+use crate::directed::routes::{respond_to_request, State};
+use crate::err::Error;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Client, Server};
 use hyper_rustls::HttpsConnectorBuilder;
-
-use crate::err::Error;
-use crate::redir::Rules;
-use crate::routes::{respond_to_request, State};
+use std::convert::Infallible;
+use std::net::SocketAddr;
+use std::sync::Arc;
 
 pub async fn run(addr: &SocketAddr, rules: Rules) -> Result<(), Error> {
     let client = Client::builder().build(
@@ -16,10 +14,11 @@ pub async fn run(addr: &SocketAddr, rules: Rules) -> Result<(), Error> {
             .with_native_roots()
             .https_or_http()
             .enable_http1()
+            .enable_http2()
             .build(),
     );
 
-    let state = Arc::new(State::new(client, rules));
+    let state = Arc::new(State { client, rules });
     let make_svc = make_service_fn(move |_| {
         let state = Arc::clone(&state);
         let svc = service_fn(move |req| {

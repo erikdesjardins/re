@@ -1,14 +1,12 @@
-use std::collections::Bound;
-use std::sync::Arc;
-
+use crate::err::Error;
+use crate::flected::body::ArcBody;
+use crate::flected::file::write_to_mmap;
+use crate::flected::routes::State;
 use headers::{AcceptRanges, ContentRange, HeaderMapExt, Range};
 use hyper::header::HOST;
 use hyper::{Body, Request, Response, StatusCode};
-
-use crate::body::ArcBody;
-use crate::err::Error;
-use crate::file::write_to_mmap;
-use crate::routes::State;
+use std::collections::Bound;
+use std::sync::Arc;
 
 pub async fn get(req: Request<Body>, state: &State) -> Result<Response<ArcBody>, Error> {
     let file = state.files.read().await.get(req.uri().path()).cloned();

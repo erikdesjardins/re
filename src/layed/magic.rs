@@ -1,4 +1,4 @@
-use crate::config::HANDSHAKE_TIMEOUT;
+use crate::layed::config::HANDSHAKE_TIMEOUT;
 use std::io;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::time::timeout;

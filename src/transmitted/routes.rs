@@ -1,4 +1,4 @@
-use crate::path::extract_uri_from_path;
+use crate::transmitted::path::extract_uri_from_path;
 use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
 use hyper::{header, Body, Client, Method, Request, Response, StatusCode};

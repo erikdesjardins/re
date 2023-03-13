@@ -1,14 +1,10 @@
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{Args, Subcommand};
 use std::io;
 use std::net::{SocketAddr, ToSocketAddrs};
 
-#[derive(Parser, Debug)]
-#[clap(version, about)]
+/// Relay a TCP socket to a machine behind a dynamic IP/firewall
+#[derive(Args, Debug)]
 pub struct Options {
-    /// Logging verbosity (-v info, -vv debug, -vvv trace)
-    #[arg(short = 'v', long = "verbose", action = ArgAction::Count, global = true)]
-    pub verbose: u8,
-
     #[command(subcommand)]
     pub mode: Mode,
 }

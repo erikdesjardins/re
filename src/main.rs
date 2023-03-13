@@ -1,3 +1,32 @@
-fn main() {
-    println!("Hello, world!");
+#![allow(clippy::type_complexity, clippy::manual_map)]
+
+mod directed;
+mod flected;
+mod layed;
+mod transmitted;
+
+mod err;
+mod opt;
+
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> Result<(), err::DisplayError> {
+    let opt::Options { verbose, command } = clap::Parser::parse();
+
+    env_logger::Builder::new()
+        .filter_level(match verbose {
+            0 => log::LevelFilter::Warn,
+            1 => log::LevelFilter::Info,
+            2 => log::LevelFilter::Debug,
+            _ => log::LevelFilter::Trace,
+        })
+        .init();
+
+    match command {
+        opt::Command::Directed(options) => directed::main(options).await?,
+        opt::Command::Flected(options) => flected::main(options).await?,
+        opt::Command::Layed(options) => layed::main(options).await?,
+        opt::Command::Transmitted(options) => transmitted::main(options).await?,
+    }
+
+    Ok(())
 }

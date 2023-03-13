@@ -1,12 +1,10 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
-
+use crate::err::Error;
+use crate::flected::body::ArcBody;
 use hyper::{Body, Method, Request, Response, StatusCode};
 use memmap2::Mmap;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 use tokio::sync::RwLock;
-
-use crate::body::ArcBody;
-use crate::err::Error;
 
 mod index;
 mod paths;

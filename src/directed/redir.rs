@@ -1,12 +1,11 @@
-use std::path::PathBuf;
-use std::str::FromStr;
-
 use http::status::InvalidStatusCode;
 use http::uri::InvalidUri;
 use hyper::{StatusCode, Uri};
+use std::path::PathBuf;
+use std::str::FromStr;
 use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct From(String);
 
 #[derive(Debug, Error)]
@@ -28,7 +27,7 @@ impl FromStr for From {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum To {
     Http(String),
     File(PathBuf, Option<PathBuf>),

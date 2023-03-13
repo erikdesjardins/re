@@ -1,22 +1,12 @@
+use crate::directed::redir::{From, To};
+use clap::Args;
 use std::net::SocketAddr;
+use std::str::FromStr;
 
-use structopt::StructOpt;
-
-use crate::redir::{From, To};
-
-#[derive(StructOpt, Debug)]
-#[structopt(about)]
+/// Redirect local HTTP traffic somewhere else
+#[derive(Args, Debug)]
 pub struct Options {
-    #[structopt(
-        short = "v",
-        long = "verbose",
-        parse(from_occurrences),
-        global = true,
-        help = "Logging verbosity (-v info, -vv debug, -vvv trace)"
-    )]
-    pub verbose: u8,
-
-    #[structopt(
+    #[arg(
         help = "Socket address to listen on (--help for more)",
         long_help = r"Socket address to listen on:
     - incoming http connections are received on this socket
@@ -25,13 +15,9 @@ Examples:
     - 0.0.0.0:80
     - [2001:db8::1]:8080"
     )]
-    pub listen_addr: SocketAddr,
+    pub listen: SocketAddr,
 
-    #[structopt(
-        short = "f",
-        long = "from",
-        required = true,
-        parse(try_from_str),
+    #[arg(
         help = "Path prefixes to redirect from (--help for more)",
         long_help = r"Path prefixes to redirect from:
     - each prefix is checked in order, and the first match is chosen
@@ -40,13 +26,10 @@ Examples:
     - /
     - /resources/static/"
     )]
+    #[arg(short, long, required = true, display_order = 0, value_parser = From::from_str)]
     pub from: Vec<From>,
 
-    #[structopt(
-        short = "t",
-        long = "to",
-        required = true,
-        parse(try_from_str),
+    #[arg(
         help = "Address prefixes to redirect to (--help for more)",
         long_help = r"Address prefixes to redirect to:
     - each matching request's tail is appended to the corresponding address prefix
@@ -58,5 +41,6 @@ Examples:
     - file://./static/|./static/index.html (fallback to ./static/index.html)
     - status://404 (empty response with status 404)"
     )]
+    #[arg(short, long, required = true, display_order = 0, value_parser = To::from_str)]
     pub to: Vec<To>,
 }

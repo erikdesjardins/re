@@ -1,10 +1,10 @@
-use crate::backoff::Backoff;
-use crate::config::{QUEUE_TIMEOUT, SERVER_ACCEPT_BACKOFF_SECS};
-use crate::err::{AppliesTo, IoErrorExt};
-use crate::heartbeat;
-use crate::magic;
-use crate::rw::conjoin;
-use crate::stream::spawn_idle;
+use crate::layed::backoff::Backoff;
+use crate::layed::config::{QUEUE_TIMEOUT, SERVER_ACCEPT_BACKOFF_SECS};
+use crate::layed::err::{AppliesTo, IoErrorExt};
+use crate::layed::heartbeat;
+use crate::layed::magic;
+use crate::layed::rw::conjoin;
+use crate::layed::stream::spawn_idle;
 use futures::future::{select, Either};
 use futures::stream;
 use futures::StreamExt;

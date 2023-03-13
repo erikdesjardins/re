@@ -1,8 +1,7 @@
-use hyper::{Body, Request, Response};
-
-use crate::body::ArcBody;
 use crate::err::Error;
-use crate::routes::State;
+use crate::flected::body::ArcBody;
+use crate::flected::routes::State;
+use hyper::{Body, Request, Response};
 
 pub async fn get(req: Request<Body>, state: &State) -> Result<Response<ArcBody>, Error> {
     let files = state.files.read().await;

@@ -1,20 +1,13 @@
+use crate::directed::file;
+use crate::directed::redir::{Action, Rules};
 use hyper::client::HttpConnector;
 use hyper::{Body, Client, Request, Response, StatusCode};
 use hyper_rustls::HttpsConnector;
 use tokio::fs::File;
 
-use crate::file;
-use crate::redir::{Action, Rules};
-
 pub struct State {
-    client: Client<HttpsConnector<HttpConnector>>,
-    rules: Rules,
-}
-
-impl State {
-    pub fn new(client: Client<HttpsConnector<HttpConnector>>, rules: Rules) -> Self {
-        Self { client, rules }
-    }
+    pub client: Client<HttpsConnector<HttpConnector>>,
+    pub rules: Rules,
 }
 
 pub async fn respond_to_request(

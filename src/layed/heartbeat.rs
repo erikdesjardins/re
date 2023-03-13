@@ -1,4 +1,4 @@
-use crate::config::HEARTBEAT_TIMEOUT;
+use crate::layed::config::HEARTBEAT_TIMEOUT;
 use std::convert::Infallible;
 use std::io;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};

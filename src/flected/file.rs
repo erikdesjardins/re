@@ -1,11 +1,10 @@
+use crate::err::Error;
 use hyper::body::HttpBody;
 use hyper::Body;
 use memmap2::Mmap;
 use tempfile::tempfile;
 use tokio::fs::File;
 use tokio::io::AsyncWriteExt;
-
-use crate::err::Error;
 
 pub async fn write_to_mmap(mut body: Body) -> Result<Mmap, Error> {
     let file = tempfile()?;

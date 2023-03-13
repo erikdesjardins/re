@@ -1,16 +1,14 @@
+use crate::flected::as_ref::{ForwardAsRef, ReindexAsRef};
+use hyper::body::{HttpBody, SizeHint};
+use hyper::header::HeaderValue;
+use hyper::HeaderMap;
 use std::convert::Infallible;
 use std::io::Cursor;
 use std::mem;
 use std::ops::Range;
 use std::sync::Arc;
 use std::task::Context;
-
-use hyper::body::{HttpBody, SizeHint};
-use hyper::header::HeaderValue;
-use hyper::HeaderMap;
 use tokio::macros::support::{Pin, Poll};
-
-use crate::as_ref::{ForwardAsRef, ReindexAsRef};
 
 type ArcAsRefBytes = Arc<dyn AsRef<[u8]> + Sync + Send>;
 
