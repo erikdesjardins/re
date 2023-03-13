@@ -8,9 +8,9 @@ use crate::layed::stream::spawn_idle;
 use futures::future::{select, Either};
 use futures::stream;
 use futures::StreamExt;
-use pin_utils::pin_mut;
 use std::io;
 use std::net::SocketAddr;
+use std::pin::pin;
 use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering::*};
 use std::time::Duration;
@@ -75,7 +75,7 @@ pub async fn run(
     log::info!("Binding to public: {}", public_addr);
     let mut public_connections = TcpListener::bind(public_addr).await?;
 
-    let gateway_connections = spawn_idle(local, |requests| {
+    let mut gateway_connections = pin!(spawn_idle(local, |requests| {
         stream::unfold(
             (gateway_connections, requests),
             |(mut gateway_connections, mut requests)| async {
@@ -93,8 +93,7 @@ pub async fn run(
 
                     // heartbeat: so the client can tell if the connection drops
                     let token = {
-                        let heartbeat = heartbeat::write_forever(&mut gateway);
-                        pin_mut!(heartbeat);
+                        let heartbeat = pin!(heartbeat::write_forever(&mut gateway));
                         match select(requests.next(), heartbeat).await {
                             Either::Left((Some(token), _)) => token,
                             Either::Left((None, _)) => return None,
@@ -110,9 +109,7 @@ pub async fn run(
                 }
             },
         )
-    });
-
-    pin_mut!(gateway_connections);
+    }));
 
     'public: loop {
         let public = accept(&mut public_connections).await;

@@ -14,7 +14,6 @@ hyper = { version = "0.14", features = ["client", "server", "http1", "http2", "t
 hyper-rustls = { version = "0.23", features = ["http2"] }
 log = "0.4"
 memmap2 = "0.5"
-pin-utils = "0.1"
 ring = "0.16"
 tempfile = "3.1"
 thiserror = "1.0"

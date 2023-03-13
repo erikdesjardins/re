@@ -1,8 +1,7 @@
 use futures::stream;
 use futures::{Stream, StreamExt};
-use pin_utils::pin_mut;
 use std::mem::ManuallyDrop;
-use std::pin::Pin;
+use std::pin::{pin, Pin};
 use std::task::Context;
 use std::task::Poll;
 use tokio::sync::mpsc;
@@ -21,7 +20,7 @@ where
 
     let idle = f(Requests(requests));
     local.spawn_local(async move {
-        pin_mut!(idle);
+        let mut idle = pin!(idle);
         loop {
             match idle.next().await {
                 Some((token, val)) => match response.send((ManuallyDrop::new(token), val)).await {
