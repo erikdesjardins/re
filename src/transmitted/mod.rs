@@ -1,5 +1,5 @@
 use crate::err::Error;
-use crate::http::{make_http_client, run_simple_server};
+use crate::http;
 use crate::transmitted::routes::{respond_to_request, State};
 use sha2::{Digest, Sha256};
 
@@ -15,7 +15,7 @@ pub async fn main(options: opt::Options) -> Result<(), Error> {
     } = options;
 
     let state = State {
-        client: make_http_client(),
+        client: http::make_client(),
         secret_key_hash: if no_secret_key {
             None
         } else {
@@ -24,7 +24,7 @@ pub async fn main(options: opt::Options) -> Result<(), Error> {
         },
     };
 
-    run_simple_server(listen, state, respond_to_request).await?;
+    http::run_simple_server(listen, state, respond_to_request).await?;
 
     Ok(())
 }

@@ -7,11 +7,15 @@ mod directed;
 mod flected;
 mod layed;
 mod transmitted;
+mod vealed;
 
+mod config;
 mod err;
 mod future;
 mod http;
 mod opt;
+mod rw;
+mod tcp;
 
 #[tokio::main]
 async fn main() -> Result<(), err::DisplayError> {
@@ -30,6 +34,7 @@ async fn main() -> Result<(), err::DisplayError> {
         opt::Command::Flected(options) => flected::main(options).await?,
         opt::Command::Layed(options) => layed::main(options).await?,
         opt::Command::Transmitted(options) => transmitted::main(options).await?,
+        opt::Command::Vealed(options) => vealed::main(options).await?,
     }
 
     Ok(())

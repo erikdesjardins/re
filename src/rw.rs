@@ -1,4 +1,4 @@
-use crate::layed::config::{MAX_BUFFER_SIZE, MIN_BUFFER_SIZE};
+use crate::config::{MAX_BUFFER_SIZE, MIN_BUFFER_SIZE};
 use futures::future;
 use futures::ready;
 use std::future::Future;
