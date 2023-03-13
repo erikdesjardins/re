@@ -13,7 +13,7 @@ mod future;
 mod http;
 mod opt;
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() -> Result<(), err::DisplayError> {
     let opt::Options { verbose, command } = clap::Parser::parse();
 

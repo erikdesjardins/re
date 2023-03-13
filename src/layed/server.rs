@@ -11,11 +11,10 @@ use futures::StreamExt;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::pin;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering::*};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::task::LocalSet;
 use tokio::time::error::Elapsed;
 use tokio::time::{sleep, timeout};
 
@@ -63,19 +62,15 @@ async fn drain_queue(listener: &mut TcpListener) {
     }
 }
 
-pub async fn run(
-    local: &LocalSet,
-    gateway_addr: &SocketAddr,
-    public_addr: &SocketAddr,
-) -> Result<(), io::Error> {
-    let active = Rc::new(AtomicUsize::new(0));
+pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<(), io::Error> {
+    let active = Arc::new(AtomicUsize::new(0));
 
     log::info!("Binding to gateway: {}", gateway_addr);
     let gateway_connections = TcpListener::bind(gateway_addr).await?;
     log::info!("Binding to public: {}", public_addr);
     let mut public_connections = TcpListener::bind(public_addr).await?;
 
-    let mut gateway_connections = pin!(spawn_idle(local, |requests| {
+    let mut gateway_connections = pin!(spawn_idle(|requests| {
         stream::unfold(
             (gateway_connections, requests),
             |(mut gateway_connections, mut requests)| async {
@@ -150,7 +145,7 @@ pub async fn run(
 
         log::info!("Spawning ({} active)", active.fetch_add(1, Relaxed) + 1);
         let active = active.clone();
-        local.spawn_local(async move {
+        tokio::spawn(async move {
             let done = conjoin(public, gateway).await;
             let active = active.fetch_sub(1, Relaxed) - 1;
             match done {
