@@ -3,12 +3,13 @@ use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
 use hyper::{header, Body, Client, Method, Request, Response, StatusCode};
 use hyper_rustls::HttpsConnector;
+use sha2::{Sha256, Digest};
 use std::convert::Infallible;
 use std::mem;
 
 pub struct State {
     pub client: Client<HttpsConnector<HttpConnector>>,
-    pub secret_key: String,
+    pub secret_key_hash: Option<Box<[u8]>>,
 }
 
 #[allow(clippy::declare_interior_mutable_const)]
@@ -30,25 +31,28 @@ pub async fn respond_to_request(
         return Ok(resp);
     }
 
-    let provided_key = match req.headers_mut().remove(X_RETRANSMITTED_KEY) {
-        Some(k) => k,
-        None => {
-            log::info!("{} {} -> [missing key]", req.method(), req.uri());
-            let mut resp = Response::new(Body::empty());
-            *resp.status_mut() = StatusCode::UNAUTHORIZED;
-            return Ok(resp);
-        }
-    };
-    match ring::constant_time::verify_slices_are_equal(
-        provided_key.as_bytes(),
-        state.secret_key.as_bytes(),
-    ) {
-        Ok(()) => {}
-        Err(ring::error::Unspecified) => {
-            log::warn!("{} {} -> [invalid key]", req.method(), req.uri());
-            let mut resp = Response::new(Body::empty());
-            *resp.status_mut() = StatusCode::UNAUTHORIZED;
-            return Ok(resp);
+    if let Some(secret_key_hash) = &state.secret_key_hash {
+        let provided_key = match req.headers_mut().remove(X_RETRANSMITTED_KEY) {
+            Some(k) => k,
+            None => {
+                log::info!("{} {} -> [missing key]", req.method(), req.uri());
+                let mut resp = Response::new(Body::empty());
+                *resp.status_mut() = StatusCode::UNAUTHORIZED;
+                return Ok(resp);
+            }
+        };
+        let provided_key_hash = Sha256::digest(provided_key);
+        match ring::constant_time::verify_slices_are_equal(
+            provided_key_hash.as_slice(),
+            secret_key_hash,
+        ) {
+            Ok(()) => {}
+            Err(ring::error::Unspecified) => {
+                log::warn!("{} {} -> [invalid key]", req.method(), req.uri());
+                let mut resp = Response::new(Body::empty());
+                *resp.status_mut() = StatusCode::UNAUTHORIZED;
+                return Ok(resp);
+            }
         }
     }
 
