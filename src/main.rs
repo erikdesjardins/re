@@ -10,6 +10,7 @@ mod transmitted;
 
 mod err;
 mod future;
+mod http;
 mod opt;
 
 #[tokio::main(flavor = "current_thread")]
