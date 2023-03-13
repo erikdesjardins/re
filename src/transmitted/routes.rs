@@ -3,7 +3,7 @@ use hyper::client::HttpConnector;
 use hyper::http::HeaderValue;
 use hyper::{header, Body, Client, Method, Request, Response, StatusCode};
 use hyper_rustls::HttpsConnector;
-use sha2::{Sha256, Digest};
+use sha2::{Digest, Sha256};
 use std::convert::Infallible;
 use std::mem;
 

@@ -1,7 +1,7 @@
-use sha2::{Sha256, Digest};
 use crate::err::Error;
 use crate::http::{make_http_client, run_simple_server};
 use crate::transmitted::routes::{respond_to_request, State};
+use sha2::{Digest, Sha256};
 
 pub mod opt;
 mod path;
