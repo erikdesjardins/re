@@ -1,9 +1,8 @@
 use crate::directed::redir::{From, To};
 use clap::Args;
 use std::net::SocketAddr;
-use std::str::FromStr;
 
-/// Redirect local HTTP traffic somewhere else
+/// Redirect HTTP traffic somewhere else
 #[derive(Args, Debug)]
 pub struct Options {
     #[arg(
@@ -26,7 +25,7 @@ Examples:
     - /
     - /resources/static/"
     )]
-    #[arg(short, long, required = true, display_order = 0, value_parser = From::from_str)]
+    #[arg(short, long, required = true, display_order = 0)]
     pub from: Vec<From>,
 
     #[arg(
@@ -41,6 +40,6 @@ Examples:
     - file://./static/|./static/index.html (fallback to ./static/index.html)
     - status://404 (empty response with status 404)"
     )]
-    #[arg(short, long, required = true, display_order = 0, value_parser = To::from_str)]
+    #[arg(short, long, required = true, display_order = 0)]
     pub to: Vec<To>,
 }
