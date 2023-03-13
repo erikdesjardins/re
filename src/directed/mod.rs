@@ -1,6 +1,3 @@
-#[macro_use]
-mod macros;
-
 mod file;
 pub mod opt;
 mod redir;

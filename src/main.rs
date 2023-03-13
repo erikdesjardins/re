@@ -1,5 +1,8 @@
 #![allow(clippy::type_complexity, clippy::manual_map)]
 
+#[macro_use]
+mod macros;
+
 mod directed;
 mod flected;
 mod layed;
