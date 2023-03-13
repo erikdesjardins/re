@@ -18,3 +18,14 @@ pub enum Command {
     Layed(crate::layed::opt::Options),
     Transmitted(crate::transmitted::opt::Options),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn verify_cli() {
+        use clap::CommandFactory;
+        Options::command().debug_assert();
+    }
+}
