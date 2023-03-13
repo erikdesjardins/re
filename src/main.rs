@@ -1,22 +1,26 @@
 #![allow(clippy::type_complexity, clippy::manual_map)]
 
+#[macro_use]
+mod macros;
+
 mod directed;
 mod flected;
 mod layed;
 mod transmitted;
 
 mod err;
+mod future;
+mod http;
 mod opt;
 
-#[tokio::main(flavor = "current_thread")]
+#[tokio::main]
 async fn main() -> Result<(), err::DisplayError> {
     let opt::Options { verbose, command } = clap::Parser::parse();
 
     env_logger::Builder::new()
         .filter_level(match verbose {
-            0 => log::LevelFilter::Warn,
-            1 => log::LevelFilter::Info,
-            2 => log::LevelFilter::Debug,
+            0 => log::LevelFilter::Info,
+            1 => log::LevelFilter::Debug,
             _ => log::LevelFilter::Trace,
         })
         .init();

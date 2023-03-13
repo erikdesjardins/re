@@ -8,14 +8,13 @@ use crate::layed::stream::spawn_idle;
 use futures::future::{select, Either};
 use futures::stream;
 use futures::StreamExt;
-use pin_utils::pin_mut;
 use std::io;
 use std::net::SocketAddr;
-use std::rc::Rc;
+use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering::*};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::task::LocalSet;
 use tokio::time::error::Elapsed;
 use tokio::time::{sleep, timeout};
 
@@ -63,19 +62,15 @@ async fn drain_queue(listener: &mut TcpListener) {
     }
 }
 
-pub async fn run(
-    local: &LocalSet,
-    gateway_addr: &SocketAddr,
-    public_addr: &SocketAddr,
-) -> Result<(), io::Error> {
-    let active = Rc::new(AtomicUsize::new(0));
+pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<(), io::Error> {
+    let active = Arc::new(AtomicUsize::new(0));
 
     log::info!("Binding to gateway: {}", gateway_addr);
     let gateway_connections = TcpListener::bind(gateway_addr).await?;
     log::info!("Binding to public: {}", public_addr);
     let mut public_connections = TcpListener::bind(public_addr).await?;
 
-    let gateway_connections = spawn_idle(local, |requests| {
+    let mut gateway_connections = pin!(spawn_idle(|requests| {
         stream::unfold(
             (gateway_connections, requests),
             |(mut gateway_connections, mut requests)| async {
@@ -93,8 +88,7 @@ pub async fn run(
 
                     // heartbeat: so the client can tell if the connection drops
                     let token = {
-                        let heartbeat = heartbeat::write_forever(&mut gateway);
-                        pin_mut!(heartbeat);
+                        let heartbeat = pin!(heartbeat::write_forever(&mut gateway));
                         match select(requests.next(), heartbeat).await {
                             Either::Left((Some(token), _)) => token,
                             Either::Left((None, _)) => return None,
@@ -110,9 +104,7 @@ pub async fn run(
                 }
             },
         )
-    });
-
-    pin_mut!(gateway_connections);
+    }));
 
     'public: loop {
         let public = accept(&mut public_connections).await;
@@ -153,7 +145,7 @@ pub async fn run(
 
         log::info!("Spawning ({} active)", active.fetch_add(1, Relaxed) + 1);
         let active = active.clone();
-        local.spawn_local(async move {
+        tokio::spawn(async move {
             let done = conjoin(public, gateway).await;
             let active = active.fetch_sub(1, Relaxed) - 1;
             match done {

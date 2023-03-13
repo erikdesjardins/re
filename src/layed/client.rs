@@ -1,31 +1,26 @@
+use crate::future::first_ok;
 use crate::layed::backoff::Backoff;
 use crate::layed::config::CLIENT_BACKOFF_SECS;
-use crate::layed::future::select_ok;
 use crate::layed::heartbeat;
 use crate::layed::magic;
 use crate::layed::rw::conjoin;
 use std::io;
 use std::net::SocketAddr;
-use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering::*};
+use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
-use tokio::task::LocalSet;
 use tokio::time::sleep;
 
 async fn connect(addrs: &[SocketAddr]) -> Result<TcpStream, io::Error> {
-    let stream = select_ok(addrs.iter().map(TcpStream::connect)).await?;
+    let stream = first_ok(addrs.iter().map(TcpStream::connect)).await?;
     stream.set_nodelay(true)?;
     Ok(stream)
 }
 
-pub async fn run(
-    local: &LocalSet,
-    gateway_addrs: &[SocketAddr],
-    private_addrs: &[SocketAddr],
-) -> ! {
+pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> ! {
     let mut backoff = Backoff::new(CLIENT_BACKOFF_SECS);
-    let active = Rc::new(AtomicUsize::new(0));
+    let active = Arc::new(AtomicUsize::new(0));
 
     loop {
         let one_round = async {
@@ -46,7 +41,7 @@ pub async fn run(
 
             log::info!("Spawning ({} active)", active.fetch_add(1, Relaxed) + 1);
             let active = active.clone();
-            local.spawn_local(async move {
+            tokio::spawn(async move {
                 let done = conjoin(gateway, private).await;
                 let active = active.fetch_sub(1, Relaxed) - 1;
                 match done {
