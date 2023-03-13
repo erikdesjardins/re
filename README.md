@@ -1,2 +1,0 @@
-# retransmitted
-Simple CORS proxy.
