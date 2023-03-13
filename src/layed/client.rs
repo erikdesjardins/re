@@ -1,6 +1,6 @@
+use crate::future::first_ok;
 use crate::layed::backoff::Backoff;
 use crate::layed::config::CLIENT_BACKOFF_SECS;
-use crate::layed::future::select_ok;
 use crate::layed::heartbeat;
 use crate::layed::magic;
 use crate::layed::rw::conjoin;
@@ -14,7 +14,7 @@ use tokio::task::LocalSet;
 use tokio::time::sleep;
 
 async fn connect(addrs: &[SocketAddr]) -> Result<TcpStream, io::Error> {
-    let stream = select_ok(addrs.iter().map(TcpStream::connect)).await?;
+    let stream = first_ok(addrs.iter().map(TcpStream::connect)).await?;
     stream.set_nodelay(true)?;
     Ok(stream)
 }

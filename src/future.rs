@@ -1,6 +1,7 @@
 use std::future::Future;
 
-pub async fn select_ok<T, E, F>(iter: impl IntoIterator<Item = F>) -> Result<T, E>
+/// Like futures::future::select_ok, but evaluates each future sequentially, instead of in parallel.
+pub async fn first_ok<T, E, F>(iter: impl IntoIterator<Item = F>) -> Result<T, E>
 where
     F: Future<Output = Result<T, E>>,
 {

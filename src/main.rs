@@ -9,6 +9,7 @@ mod layed;
 mod transmitted;
 
 mod err;
+mod future;
 mod opt;
 
 #[tokio::main(flavor = "current_thread")]
