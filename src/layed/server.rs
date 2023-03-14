@@ -1,66 +1,23 @@
+use crate::err::{AppliesTo, IoErrorExt};
 use crate::layed::backoff::Backoff;
 use crate::layed::config::{QUEUE_TIMEOUT, SERVER_ACCEPT_BACKOFF_SECS};
-use crate::layed::err::{AppliesTo, IoErrorExt};
 use crate::layed::heartbeat;
 use crate::layed::magic;
-use crate::layed::rw::conjoin;
 use crate::layed::stream::spawn_idle;
+use crate::rw;
+use crate::tcp;
 use futures::future::{select, Either};
 use futures::stream;
 use futures::StreamExt;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::pin;
-use std::sync::atomic::{AtomicUsize, Ordering::*};
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpListener;
 use tokio::time::error::Elapsed;
 use tokio::time::{sleep, timeout};
-
-async fn accept(listener: &mut TcpListener) -> TcpStream {
-    let mut backoff = Backoff::new(SERVER_ACCEPT_BACKOFF_SECS);
-    loop {
-        match listener.accept().await {
-            Ok((stream, _addr)) => {
-                backoff.reset();
-                if let Err(e) = stream.set_nodelay(true) {
-                    log::warn!("Failed to set nodelay: {}", e);
-                    continue;
-                }
-                return stream;
-            }
-            Err(e) => match e.applies_to() {
-                AppliesTo::Connection => log::info!("Aborted connection dropped: {}", e),
-                AppliesTo::Listener => {
-                    log::error!("Error accepting connections: {}", e);
-                    let seconds = backoff.next();
-                    log::warn!("Retrying in {} seconds", seconds);
-                    sleep(Duration::from_secs(u64::from(seconds))).await;
-                }
-            },
-        }
-    }
-}
-
-async fn drain_queue(listener: &mut TcpListener) {
-    loop {
-        // timeout because we need to yield to receive the second queued conn
-        // (listener.poll_recv() won't return Poll::Ready twice in a row,
-        //  even if there are multiple queued connections)
-        match timeout(Duration::from_millis(1), listener.accept()).await {
-            Ok(Ok((_, _))) => log::info!("Queued conn dropped"),
-            Ok(Err(e)) => match e.applies_to() {
-                AppliesTo::Connection => log::info!("Queued conn dropped: {}", e),
-                AppliesTo::Listener => break,
-            },
-            Err(e) => {
-                let _: Elapsed = e;
-                break;
-            }
-        }
-    }
-}
 
 pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<(), io::Error> {
     let active = Arc::new(AtomicUsize::new(0));
@@ -75,7 +32,19 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
             (gateway_connections, requests),
             |(mut gateway_connections, mut requests)| async {
                 loop {
-                    let mut gateway = accept(&mut gateway_connections).await;
+                    let mut backoff = Backoff::new(SERVER_ACCEPT_BACKOFF_SECS);
+                    let mut gateway = loop {
+                        match tcp::accept(&mut gateway_connections).await {
+                            Ok(gateway) => break gateway,
+                            Err(e) => {
+                                log::error!("Error accepting gateway connections: {}", e);
+                                let seconds = backoff.next();
+                                log::warn!("Retrying in {} seconds", seconds);
+                                sleep(Duration::from_secs(u64::from(seconds))).await;
+                                continue;
+                            }
+                        }
+                    };
 
                     // early handshake: immediately kill unknown connections
                     match magic::read_from(&mut gateway).await {
@@ -107,7 +76,19 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
     }));
 
     'public: loop {
-        let public = accept(&mut public_connections).await;
+        let mut backoff = Backoff::new(SERVER_ACCEPT_BACKOFF_SECS);
+        let public = loop {
+            match tcp::accept(&mut public_connections).await {
+                Ok(public) => break public,
+                Err(e) => {
+                    log::error!("Error accepting public connections: {}", e);
+                    let seconds = backoff.next();
+                    log::warn!("Retrying in {} seconds", seconds);
+                    sleep(Duration::from_secs(u64::from(seconds))).await;
+                    continue;
+                }
+            }
+        };
 
         let gateway = loop {
             // drop public connections which wait for too long, to avoid unlimited queuing when no gateway is connected
@@ -146,12 +127,31 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
         log::info!("Spawning ({} active)", active.fetch_add(1, Relaxed) + 1);
         let active = active.clone();
         tokio::spawn(async move {
-            let done = conjoin(public, gateway).await;
+            let done = rw::conjoin(public, gateway).await;
             let active = active.fetch_sub(1, Relaxed) - 1;
             match done {
                 Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),
                 Err(e) => log::info!("Closing ({} active): {}", active, e),
             }
         });
+    }
+}
+
+pub async fn drain_queue(listener: &mut TcpListener) {
+    loop {
+        // timeout because we need to yield to receive the second queued conn
+        // (listener.poll_recv() won't return Poll::Ready twice in a row,
+        //  even if there are multiple queued connections)
+        match timeout(Duration::from_millis(1), listener.accept()).await {
+            Ok(Ok((_, _))) => log::info!("Queued conn dropped"),
+            Ok(Err(e)) => match e.applies_to() {
+                AppliesTo::Connection => log::info!("Queued conn dropped: {}", e),
+                AppliesTo::Listener => break,
+            },
+            Err(e) => {
+                let _: Elapsed = e;
+                break;
+            }
+        }
     }
 }

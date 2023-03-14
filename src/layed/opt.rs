@@ -1,8 +1,8 @@
+use crate::opt::SocketAddrsFromDns;
 use clap::{Args, Subcommand};
-use std::io;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::SocketAddr;
 
-/// Relay a TCP socket to a machine behind a dynamic IP/firewall
+/// Relay TCP connections to a machine behind a dynamic IP/firewall
 #[derive(Args, Debug)]
 pub struct Options {
     #[command(subcommand)]
@@ -22,25 +22,9 @@ pub enum Mode {
     /// Run the client half on a private machine
     Client {
         /// Address of server's gateway
-        #[arg(value_parser = socket_addrs)]
-        gateway: V<SocketAddr>,
+        gateway: SocketAddrsFromDns,
 
         /// Address to relay public traffic to
-        #[arg(value_parser = socket_addrs)]
-        private: V<SocketAddr>,
+        private: SocketAddrsFromDns,
     },
-}
-
-/// Alias to avoid clap special-casing `Vec`
-type V<T> = Vec<T>;
-
-fn socket_addrs(arg: &str) -> Result<Vec<SocketAddr>, io::Error> {
-    let addrs = arg.to_socket_addrs()?.collect::<Vec<_>>();
-    match addrs.len() {
-        0 => Err(io::Error::new(
-            io::ErrorKind::AddrNotAvailable,
-            "Resolved to zero addresses",
-        )),
-        _ => Ok(addrs),
-    }
 }

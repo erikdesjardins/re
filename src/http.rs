@@ -8,7 +8,7 @@ use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-pub fn make_http_client() -> Client<HttpsConnector<HttpConnector>> {
+pub fn make_client() -> Client<HttpsConnector<HttpConnector>> {
     Client::builder().build(
         HttpsConnectorBuilder::new()
             .with_native_roots()

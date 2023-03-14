@@ -1,11 +1,9 @@
 mod backoff;
 mod client;
 mod config;
-mod err;
 mod heartbeat;
 mod magic;
 pub mod opt;
-mod rw;
 mod server;
 mod stream;
 

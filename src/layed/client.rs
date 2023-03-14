@@ -1,22 +1,15 @@
-use crate::future::first_ok;
 use crate::layed::backoff::Backoff;
 use crate::layed::config::CLIENT_BACKOFF_SECS;
 use crate::layed::heartbeat;
 use crate::layed::magic;
-use crate::layed::rw::conjoin;
+use crate::rw;
+use crate::tcp;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicUsize, Ordering::*};
+use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::TcpStream;
 use tokio::time::sleep;
-
-async fn connect(addrs: &[SocketAddr]) -> Result<TcpStream, io::Error> {
-    let stream = first_ok(addrs.iter().map(TcpStream::connect)).await?;
-    stream.set_nodelay(true)?;
-    Ok(stream)
-}
 
 pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> ! {
     let mut backoff = Backoff::new(CLIENT_BACKOFF_SECS);
@@ -25,7 +18,7 @@ pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> 
     loop {
         let one_round = async {
             log::info!("Connecting to gateway");
-            let mut gateway = connect(gateway_addrs).await?;
+            let mut gateway = tcp::connect(gateway_addrs).await?;
 
             log::info!("Sending early handshake");
             magic::write_to(&mut gateway).await?;
@@ -37,12 +30,12 @@ pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> 
             magic::write_to(&mut gateway).await?;
 
             log::info!("Connecting to private");
-            let private = connect(private_addrs).await?;
+            let private = tcp::connect(private_addrs).await?;
 
             log::info!("Spawning ({} active)", active.fetch_add(1, Relaxed) + 1);
             let active = active.clone();
             tokio::spawn(async move {
-                let done = conjoin(gateway, private).await;
+                let done = rw::conjoin(gateway, private).await;
                 let active = active.fetch_sub(1, Relaxed) - 1;
                 match done {
                     Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),
