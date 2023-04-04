@@ -1,8 +1,16 @@
 use clap::Args;
 use std::net::SocketAddr;
 
-/// Simple CORS proxy
 #[derive(Args, Debug)]
+#[clap(
+    about = "Simple CORS proxy",
+    long_about = "Simple CORS proxy
+
+Clients should provide the target URL in the request path.
+Examples:
+- GET http://localhost:8080/http://example.com/test.html
+- POST http://localhost:8080/example.com/test.html (defaults to https)"
+)]
 pub struct Options {
     /// Socket address to listen on
     pub listen: SocketAddr,
