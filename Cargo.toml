@@ -11,7 +11,7 @@ futures = "0.3"
 headers = "0.3"
 http = "0.2"
 hyper = { version = "0.14", features = ["client", "server", "http1", "http2", "tcp", "stream"] }
-hyper-rustls = { version = "0.23", features = ["http2"] }
+hyper-rustls = { version = "0.24", features = ["http2"] }
 log = "0.4"
 memmap2 = "0.5"
 ring = "0.16"
