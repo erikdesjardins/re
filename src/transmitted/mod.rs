@@ -10,17 +10,21 @@ mod routes;
 pub async fn main(options: opt::Options) -> Result<(), Error> {
     let opt::Options {
         listen,
-        secret_key,
-        no_secret_key,
+        key: opt::KeyOptions {
+            secret_key,
+            no_secret_key,
+        },
     } = options;
 
     let state = State {
         client: http::make_client(),
-        secret_key_hash: if no_secret_key {
-            None
-        } else {
-            let hash = Sha256::digest(secret_key);
-            Some(Box::from(hash.as_slice()))
+        secret_key_hash: match (secret_key, no_secret_key) {
+            (Some(secret_key), _) => {
+                let hash = Sha256::digest(secret_key);
+                Some(Box::from(hash.as_slice()))
+            }
+            (None, true) => None,
+            (None, false) => unreachable!("no secret key but no no_secret_key"),
         },
     };
 
