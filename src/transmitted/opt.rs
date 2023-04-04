@@ -7,10 +7,16 @@ pub struct Options {
     /// Socket address to listen on
     pub listen: SocketAddr,
 
-    // TODO: use a group to forbid setting both of these when https://github.com/clap-rs/clap/pull/4688 is merged
+    #[command(flatten)]
+    pub key: KeyOptions,
+}
+
+#[derive(Args, Debug)]
+#[group(required = true, multiple = false)]
+pub struct KeyOptions {
     /// Secret key that clients must provide in the x-retransmitted-key header
-    #[arg(long, required = false)]
-    pub secret_key: String,
+    #[arg(long)]
+    pub secret_key: Option<String>,
 
     /// Allow unauthenticated access with no secret key
     #[arg(long)]
