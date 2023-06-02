@@ -13,9 +13,9 @@ http = "0.2"
 hyper = { version = "0.14", features = ["client", "server", "http1", "http2", "tcp", "stream"] }
 hyper-rustls = { version = "0.24", features = ["http2"] }
 log = "0.4"
-memmap2 = "0.5"
+memmap2 = "0.6"
 ring = "0.16"
 sha2 = "0.10"
-tempfile = "3.1"
-thiserror = "1.0"
-tokio = { version = "1.0", features = ["fs", "io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+tempfile = "3"
+thiserror = "1"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
