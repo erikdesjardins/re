@@ -1,6 +1,6 @@
 [package]
 name = "re"
-version = "0.3.2"
+version = "0.3.3"
 description = "Network utility toolkit. re{layed,flected,directed,transmitted,vealed}"
 edition = "2021"
 
@@ -13,7 +13,7 @@ http = "0.2"
 hyper = { version = "0.14", features = ["client", "server", "http1", "http2", "tcp", "stream"] }
 hyper-rustls = { version = "0.24", features = ["http2"] }
 log = "0.4"
-memmap2 = "0.6"
+memmap2 = "0.7"
 ring = "0.16"
 sha2 = "0.10"
 tempfile = "3"
