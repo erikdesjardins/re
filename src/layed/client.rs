@@ -7,13 +7,13 @@ use crate::tcp;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;
 
+static ACTIVE: AtomicUsize = AtomicUsize::new(0);
+
 pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> ! {
     let mut backoff = Backoff::new(CLIENT_BACKOFF_SECS);
-    let active = Arc::new(AtomicUsize::new(0));
 
     loop {
         let one_round = async {
@@ -32,11 +32,10 @@ pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> 
             log::info!("Connecting to private");
             let private = tcp::connect(private_addrs).await?;
 
-            log::info!("Spawning ({} active)", active.fetch_add(1, Relaxed) + 1);
-            let active = active.clone();
+            log::info!("Spawning ({} active)", ACTIVE.fetch_add(1, Relaxed) + 1);
             tokio::spawn(async move {
                 let done = rw::conjoin(gateway, private).await;
-                let active = active.fetch_sub(1, Relaxed) - 1;
+                let active = ACTIVE.fetch_sub(1, Relaxed) - 1;
                 match done {
                     Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),
                     Err(e) => log::info!("Closing ({} active): {}", active, e),
