@@ -11,7 +11,6 @@ pub async fn write_to_mmap<B, E>(
 ) -> Result<Mmap, Error>
 where
     B: AsRef<[u8]>,
-    E: Send + Sync,
     Error: From<E>,
 {
     let file = tempfile()?;
