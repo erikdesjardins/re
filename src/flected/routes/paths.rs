@@ -3,18 +3,19 @@ use crate::flected::body::ArcBody;
 use crate::flected::file::write_to_mmap;
 use crate::flected::routes::State;
 use headers::{AcceptRanges, ContentRange, HeaderMapExt, Range};
+use hyper::body::Incoming;
 use hyper::header::HOST;
-use hyper::{Body, Request, Response, StatusCode};
+use hyper::{Request, Response, StatusCode};
 use std::collections::Bound;
 use std::sync::Arc;
 
-pub async fn get(req: Request<Body>, state: &State) -> Result<Response<ArcBody>, Error> {
+pub async fn get(req: Request<Incoming>, state: &State) -> Result<Response<ArcBody>, Error> {
     let file = state.files.read().await.get(req.uri().path()).cloned();
     Ok(match file {
         Some(file) => match req
             .headers()
             .typed_get::<Range>()
-            .and_then(|r| r.iter().next())
+            .and_then(|r| r.satisfiable_ranges(file.len() as u64).next())
         {
             Some((start, end)) => {
                 let file_len = file.len();
@@ -93,7 +94,7 @@ pub async fn get(req: Request<Body>, state: &State) -> Result<Response<ArcBody>,
     })
 }
 
-pub async fn post(req: Request<Body>, state: &State) -> Result<Response<ArcBody>, Error> {
+pub async fn post(req: Request<Incoming>, state: &State) -> Result<Response<ArcBody>, Error> {
     log::info!("POST {} -> [start upload]", req.uri());
     let (parts, body) = req.into_parts();
     let file = write_to_mmap(body).await?;
@@ -106,7 +107,7 @@ pub async fn post(req: Request<Body>, state: &State) -> Result<Response<ArcBody>
     Ok(Response::new(ArcBody::empty()))
 }
 
-pub async fn delete(req: Request<Body>, state: &State) -> Result<Response<ArcBody>, Error> {
+pub async fn delete(req: Request<Incoming>, state: &State) -> Result<Response<ArcBody>, Error> {
     let file = state.files.write().await.remove(req.uri().path());
     Ok(match file {
         Some(file) => {

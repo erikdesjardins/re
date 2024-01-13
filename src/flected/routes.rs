@@ -1,6 +1,7 @@
 use crate::err::Error;
 use crate::flected::body::ArcBody;
-use hyper::{Body, Method, Request, Response, StatusCode};
+use hyper::body::Incoming;
+use hyper::{Method, Request, Response, StatusCode};
 use memmap2::Mmap;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -15,7 +16,7 @@ pub struct State {
 }
 
 pub async fn respond_to_request(
-    req: Request<Body>,
+    req: Request<Incoming>,
     state: &State,
 ) -> Result<Response<ArcBody>, Error> {
     match *req.method() {

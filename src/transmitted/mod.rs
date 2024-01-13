@@ -17,7 +17,7 @@ pub async fn main(options: opt::Options) -> Result<(), Error> {
     } = options;
 
     let state = State {
-        client: http::make_client(),
+        client: http::make_client()?,
         secret_key_hash: match (secret_key, no_secret_key) {
             (Some(secret_key), _) => {
                 let hash = Sha256::digest(secret_key);
