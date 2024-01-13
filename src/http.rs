@@ -6,6 +6,7 @@ use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
+use std::convert::Infallible;
 use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
@@ -25,18 +26,17 @@ pub fn make_client() -> Result<ProxyClient, io::Error> {
     ))
 }
 
-pub async fn run_simple_server<S, F, B, E>(
+pub async fn run_simple_server<S, F, B>(
     addr: SocketAddr,
     state: S,
     handle_req: F,
 ) -> Result<(), io::Error>
 where
     S: Send + Sync + 'static,
-    F: for<'s> ServiceFn<'s, Request<Incoming>, S, Result<Response<B>, E>> + Copy + Send + 'static,
+    F: for<'s> ServiceFn<'s, Request<Incoming>, S, Response<B>> + Copy + Send + 'static,
     B: Body + Send + 'static,
     <B as Body>::Data: Send,
-    <B as Body>::Error: Into<Box<dyn std::error::Error + Send + Sync>> + Send + Sync + 'static,
-    E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + Sync + 'static,
+    <B as Body>::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let state = Arc::new(state);
     let listener = TcpListener::bind(addr).await?;
@@ -49,7 +49,7 @@ where
         tokio::spawn(async move {
             let serve = service_fn(move |req| {
                 let state = Arc::clone(&state);
-                async move { handle_req(req, &state).await }
+                async move { Ok::<_, Infallible>(handle_req(req, &state).await) }
             });
 
             if let Err(e) = auto::Builder::new(TokioExecutor::new())

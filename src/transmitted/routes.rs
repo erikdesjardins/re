@@ -7,7 +7,6 @@ use hyper::body::{Bytes, Incoming};
 use hyper::http::HeaderValue;
 use hyper::{header, Method, Request, Response, StatusCode};
 use sha2::{Digest, Sha256};
-use std::convert::Infallible;
 use std::mem;
 
 pub struct State {
@@ -19,7 +18,7 @@ pub struct State {
 pub async fn respond_to_request(
     mut req: Request<Incoming>,
     state: &State,
-) -> Result<Response<BoxBody<Bytes, hyper::Error>>, Infallible> {
+) -> Response<BoxBody<Bytes, hyper::Error>> {
     const X_RETRANSMITTED_KEY: &str = "x-retransmitted-key";
     const ANY: HeaderValue = HeaderValue::from_static("*");
     const ALLOWED_HEADERS: HeaderValue = HeaderValue::from_static(X_RETRANSMITTED_KEY);
@@ -31,7 +30,7 @@ pub async fn respond_to_request(
             .append(header::ACCESS_CONTROL_ALLOW_ORIGIN, ANY);
         resp.headers_mut()
             .append(header::ACCESS_CONTROL_ALLOW_HEADERS, ALLOWED_HEADERS);
-        return Ok(resp);
+        return resp;
     }
 
     if let Some(secret_key_hash) = &state.secret_key_hash {
@@ -41,7 +40,7 @@ pub async fn respond_to_request(
                 log::info!("{} {} -> [missing key]", req.method(), req.uri());
                 let mut resp = Response::new(empty());
                 *resp.status_mut() = StatusCode::UNAUTHORIZED;
-                return Ok(resp);
+                return resp;
             }
         };
         let provided_key_hash = Sha256::digest(provided_key);
@@ -54,7 +53,7 @@ pub async fn respond_to_request(
                 log::warn!("{} {} -> [invalid key]", req.method(), req.uri());
                 let mut resp = Response::new(empty());
                 *resp.status_mut() = StatusCode::UNAUTHORIZED;
-                return Ok(resp);
+                return resp;
             }
         }
     }
@@ -64,7 +63,7 @@ pub async fn respond_to_request(
             log::warn!("{} {} -> [missing url]", req.method(), req.uri());
             let mut resp = Response::new(empty());
             *resp.status_mut() = StatusCode::BAD_REQUEST;
-            return Ok(resp);
+            return resp;
         }
         Some(Err((e, unparsed))) => {
             log::warn!(
@@ -76,7 +75,7 @@ pub async fn respond_to_request(
             );
             let mut resp = Response::new(empty());
             *resp.status_mut() = StatusCode::BAD_REQUEST;
-            return Ok(resp);
+            return resp;
         }
         Some(Ok(u)) => u,
     };
@@ -89,12 +88,12 @@ pub async fn respond_to_request(
             log::error!("{} {} -> [proxy error] {}", orig_method, orig_uri, e);
             let mut resp = Response::new(empty());
             *resp.status_mut() = StatusCode::BAD_GATEWAY;
-            return Ok(resp);
+            return resp;
         }
     };
 
     log::info!("{} {} -> [success]", orig_method, orig_uri);
     resp.headers_mut()
         .append(header::ACCESS_CONTROL_ALLOW_ORIGIN, ANY);
-    Ok(resp.map(|body| body.boxed()))
+    resp.map(|body| body.boxed())
 }

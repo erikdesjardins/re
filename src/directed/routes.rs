@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use crate::body::empty;
 use crate::directed::file;
 use crate::directed::redir::{Action, Rules};
@@ -19,7 +17,7 @@ pub struct State {
 pub async fn respond_to_request(
     mut req: Request<Incoming>,
     state: &State,
-) -> Result<Response<BoxBody<Bytes, Error>>, Infallible> {
+) -> Response<BoxBody<Bytes, Error>> {
     match state.rules.try_match(req.uri()) {
         Some(Ok(Action::Http(uri))) => {
             // Proxy this request to the new URL
@@ -28,13 +26,13 @@ pub async fn respond_to_request(
             match state.client.request(req).await {
                 Ok(resp) => {
                     log::info!("{} -> {}", req_uri, uri);
-                    Ok(resp.map(|body| body.map_err(Error::from).boxed()))
+                    resp.map(|body| body.map_err(Error::from).boxed())
                 }
                 Err(e) => {
                     log::warn!("{} -> [proxy error] {} : {}", req_uri, uri, e);
                     let mut resp = Response::new(empty());
                     *resp.status_mut() = StatusCode::BAD_GATEWAY;
-                    Ok(resp)
+                    resp
                 }
             }
         }
@@ -53,15 +51,13 @@ pub async fn respond_to_request(
             match found_file {
                 Ok((found_path, file)) => {
                     log::info!("{} -> {}", req.uri(), found_path.display());
-                    Ok(Response::new(
-                        file::body_stream(file).map_err(Error::from).boxed(),
-                    ))
+                    Response::new(file::body_stream(file).map_err(Error::from).boxed())
                 }
                 Err((path, e)) => {
                     log::warn!("{} -> [file error] {} : {}", req.uri(), path.display(), e);
                     let mut resp = Response::new(empty());
                     *resp.status_mut() = StatusCode::NOT_FOUND;
-                    Ok(resp)
+                    resp
                 }
             }
         }
@@ -69,19 +65,19 @@ pub async fn respond_to_request(
             log::info!("{} -> {}", req.uri(), status);
             let mut resp = Response::new(empty());
             *resp.status_mut() = status;
-            Ok(resp)
+            resp
         }
         Some(Err(e)) => {
             log::warn!("{} -> [internal error] : {}", req.uri(), e);
             let mut resp = Response::new(empty());
             *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
-            Ok(resp)
+            resp
         }
         None => {
             log::warn!("{} -> [no match]", req.uri());
             let mut resp = Response::new(empty());
             *resp.status_mut() = StatusCode::BAD_GATEWAY;
-            Ok(resp)
+            resp
         }
     }
 }
