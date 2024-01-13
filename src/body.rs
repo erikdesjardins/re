@@ -14,14 +14,18 @@ pub fn empty<E>() -> BoxBody<Bytes, E> {
 }
 
 pub fn from_file(file: File) -> impl Body<Data = Bytes, Error = io::Error> {
-    StreamBody::new(stream::try_unfold(file, {
-        let mut buf = [0; 4 * 1024];
-        move |mut file| async move {
-            match file.read(&mut buf).await {
+    let buf = Box::new([0; 64 * 1024]);
+    StreamBody::new(stream::try_unfold(
+        (file, buf),
+        move |(mut file, mut buf)| async move {
+            match file.read(&mut buf[..]).await {
                 Ok(0) => Ok(None),
-                Ok(n) => Ok(Some((Frame::data(Bytes::copy_from_slice(&buf[..n])), file))),
+                Ok(n) => Ok(Some((
+                    Frame::data(Bytes::copy_from_slice(&buf[..n])),
+                    (file, buf),
+                ))),
                 Err(e) => Err(e),
             }
-        }
-    }))
+        },
+    ))
 }
