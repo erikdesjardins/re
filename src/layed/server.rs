@@ -13,15 +13,14 @@ use std::io;
 use std::net::SocketAddr;
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
-use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpListener;
 use tokio::time::error::Elapsed;
 use tokio::time::{sleep, timeout};
 
-pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<(), io::Error> {
-    let active = Arc::new(AtomicUsize::new(0));
+static ACTIVE: AtomicUsize = AtomicUsize::new(0);
 
+pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<(), io::Error> {
     log::info!("Binding to gateway: {}", gateway_addr);
     let gateway_connections = TcpListener::bind(gateway_addr).await?;
     log::info!("Binding to public: {}", public_addr);
@@ -124,11 +123,10 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
             break gateway;
         };
 
-        log::info!("Spawning ({} active)", active.fetch_add(1, Relaxed) + 1);
-        let active = active.clone();
+        log::info!("Spawning ({} active)", ACTIVE.fetch_add(1, Relaxed) + 1);
         tokio::spawn(async move {
             let done = rw::conjoin(public, gateway).await;
-            let active = active.fetch_sub(1, Relaxed) - 1;
+            let active = ACTIVE.fetch_sub(1, Relaxed) - 1;
             match done {
                 Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),
                 Err(e) => log::info!("Closing ({} active): {}", active, e),

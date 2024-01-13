@@ -1,6 +1,6 @@
-use crate::err::Error;
 use crate::flected::body::ArcBody;
-use hyper::{Body, Method, Request, Response, StatusCode};
+use hyper::body::Incoming;
+use hyper::{Method, Request, Response, StatusCode};
 use memmap2::Mmap;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -14,10 +14,7 @@ pub struct State {
     files: RwLock<BTreeMap<String, Arc<Mmap>>>,
 }
 
-pub async fn respond_to_request(
-    req: Request<Body>,
-    state: &State,
-) -> Result<Response<ArcBody>, Error> {
+pub async fn respond_to_request(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
     match *req.method() {
         Method::GET if req.uri().path() == "/" => index::get(req, state).await,
         Method::GET => paths::get(req, state).await,
@@ -27,7 +24,7 @@ pub async fn respond_to_request(
             log::warn!("{} {} -> [method not allowed]", req.method(), req.uri());
             let mut resp = Response::new(ArcBody::empty());
             *resp.status_mut() = StatusCode::METHOD_NOT_ALLOWED;
-            Ok(resp)
+            resp
         }
     }
 }

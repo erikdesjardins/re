@@ -1,34 +1,36 @@
+use crate::body;
+use crate::http::ProxyClient;
 use crate::transmitted::path::extract_uri_from_path;
-use hyper::client::HttpConnector;
+use http_body_util::combinators::BoxBody;
+use http_body_util::BodyExt;
+use hyper::body::{Bytes, Incoming};
 use hyper::http::HeaderValue;
-use hyper::{header, Body, Client, Method, Request, Response, StatusCode};
-use hyper_rustls::HttpsConnector;
+use hyper::{header, Method, Request, Response, StatusCode};
 use sha2::{Digest, Sha256};
-use std::convert::Infallible;
 use std::mem;
 
 pub struct State {
-    pub client: Client<HttpsConnector<HttpConnector>>,
+    pub client: ProxyClient,
     pub secret_key_hash: Option<Box<[u8]>>,
 }
 
 #[allow(clippy::declare_interior_mutable_const)]
 pub async fn respond_to_request(
-    mut req: Request<Body>,
+    mut req: Request<Incoming>,
     state: &State,
-) -> Result<Response<Body>, Infallible> {
+) -> Response<BoxBody<Bytes, hyper::Error>> {
     const X_RETRANSMITTED_KEY: &str = "x-retransmitted-key";
     const ANY: HeaderValue = HeaderValue::from_static("*");
     const ALLOWED_HEADERS: HeaderValue = HeaderValue::from_static(X_RETRANSMITTED_KEY);
 
     if req.method() == Method::OPTIONS {
         log::info!("{} {} -> [preflight response]", req.method(), req.uri());
-        let mut resp = Response::new(Body::empty());
+        let mut resp = Response::new(body::empty());
         resp.headers_mut()
             .append(header::ACCESS_CONTROL_ALLOW_ORIGIN, ANY);
         resp.headers_mut()
             .append(header::ACCESS_CONTROL_ALLOW_HEADERS, ALLOWED_HEADERS);
-        return Ok(resp);
+        return resp;
     }
 
     if let Some(secret_key_hash) = &state.secret_key_hash {
@@ -36,9 +38,9 @@ pub async fn respond_to_request(
             Some(k) => k,
             None => {
                 log::info!("{} {} -> [missing key]", req.method(), req.uri());
-                let mut resp = Response::new(Body::empty());
+                let mut resp = Response::new(body::empty());
                 *resp.status_mut() = StatusCode::UNAUTHORIZED;
-                return Ok(resp);
+                return resp;
             }
         };
         let provided_key_hash = Sha256::digest(provided_key);
@@ -49,9 +51,9 @@ pub async fn respond_to_request(
             Ok(()) => {}
             Err(ring::error::Unspecified) => {
                 log::warn!("{} {} -> [invalid key]", req.method(), req.uri());
-                let mut resp = Response::new(Body::empty());
+                let mut resp = Response::new(body::empty());
                 *resp.status_mut() = StatusCode::UNAUTHORIZED;
-                return Ok(resp);
+                return resp;
             }
         }
     }
@@ -59,9 +61,9 @@ pub async fn respond_to_request(
     let uri = match extract_uri_from_path(req.uri()) {
         None => {
             log::warn!("{} {} -> [missing url]", req.method(), req.uri());
-            let mut resp = Response::new(Body::empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::BAD_REQUEST;
-            return Ok(resp);
+            return resp;
         }
         Some(Err((e, unparsed))) => {
             log::warn!(
@@ -71,9 +73,9 @@ pub async fn respond_to_request(
                 unparsed,
                 e
             );
-            let mut resp = Response::new(Body::empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::BAD_REQUEST;
-            return Ok(resp);
+            return resp;
         }
         Some(Ok(u)) => u,
     };
@@ -84,14 +86,14 @@ pub async fn respond_to_request(
         Ok(r) => r,
         Err(e) => {
             log::error!("{} {} -> [proxy error] {}", orig_method, orig_uri, e);
-            let mut resp = Response::new(Body::empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::BAD_GATEWAY;
-            return Ok(resp);
+            return resp;
         }
     };
 
     log::info!("{} {} -> [success]", orig_method, orig_uri);
     resp.headers_mut()
         .append(header::ACCESS_CONTROL_ALLOW_ORIGIN, ANY);
-    Ok(resp)
+    resp.map(|body| body.boxed())
 }

@@ -4,9 +4,7 @@ use std::borrow::Cow;
 use std::str::FromStr;
 
 pub fn extract_uri_from_path(uri: &Uri) -> Option<Result<Uri, (InvalidUri, Cow<'_, str>)>> {
-    let path = uri
-        .path_and_query()
-        .and_then(|p| p.as_str().strip_prefix('/'))?;
+    let path = uri.path_and_query()?.as_str().strip_prefix('/')?;
 
     let unparsed = if path.starts_with("https:") || path.starts_with("http:") {
         Cow::Borrowed(path)

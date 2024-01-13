@@ -1,9 +1,9 @@
-use crate::err::Error;
 use crate::flected::body::ArcBody;
 use crate::flected::routes::State;
-use hyper::{Body, Request, Response};
+use hyper::body::Incoming;
+use hyper::{Request, Response};
 
-pub async fn get(req: Request<Body>, state: &State) -> Result<Response<ArcBody>, Error> {
+pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
     let files = state.files.read().await;
     log::info!("GET {} -> [listing {} files]", req.uri(), files.len());
     let files_listing = files
@@ -19,7 +19,7 @@ pub async fn get(req: Request<Body>, state: &State) -> Result<Response<ArcBody>,
         })
         .collect::<Vec<_>>()
         .join("");
-    Ok(Response::new(ArcBody::new(format!(
+    Response::new(ArcBody::new(format!(
         concat!(
             "<!DOCTYPE html>",
             "<html>",
@@ -38,5 +38,5 @@ pub async fn get(req: Request<Body>, state: &State) -> Result<Response<ArcBody>,
             "</html>",
         ),
         files_listing = files_listing
-    ))))
+    )))
 }

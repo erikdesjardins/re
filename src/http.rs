@@ -1,50 +1,65 @@
-use hyper::body::HttpBody;
-use hyper::client::HttpConnector;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Client, Request, Response, Server};
+use hyper::body::{Body, Incoming};
+use hyper::service::service_fn;
+use hyper::{Request, Response};
 use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use hyper_util::client::legacy::connect::HttpConnector;
+use hyper_util::client::legacy::Client;
+use hyper_util::rt::{TokioExecutor, TokioIo};
+use hyper_util::server::conn::auto;
 use std::convert::Infallible;
 use std::future::Future;
+use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use tokio::net::TcpListener;
 
-pub fn make_client() -> Client<HttpsConnector<HttpConnector>> {
-    Client::builder().build(
+pub type ProxyClient = Client<HttpsConnector<HttpConnector>, Incoming>;
+
+pub fn make_client() -> Result<ProxyClient, io::Error> {
+    Ok(Client::builder(TokioExecutor::new()).build(
         HttpsConnectorBuilder::new()
-            .with_native_roots()
+            .with_native_roots()?
             .https_or_http()
             .enable_http1()
             .enable_http2()
             .build(),
-    )
+    ))
 }
 
-pub async fn run_simple_server<S, F, B, E>(
+pub async fn run_simple_server<S, F, B>(
     addr: SocketAddr,
     state: S,
     handle_req: F,
-) -> Result<(), hyper::Error>
+) -> Result<(), io::Error>
 where
     S: Send + Sync + 'static,
-    F: for<'s> ServiceFn<'s, Request<Body>, S, Result<Response<B>, E>> + Copy + Send + 'static,
-    B: HttpBody + Send + 'static,
-    <B as HttpBody>::Data: Send,
-    <B as HttpBody>::Error: Into<Box<dyn std::error::Error + Send + Sync>> + Send + Sync + 'static,
-    E: Into<Box<dyn std::error::Error + Send + Sync>> + Send + Sync + 'static,
+    F: for<'s> ServiceFn<'s, Request<Incoming>, S, Response<B>> + Copy + Send + 'static,
+    B: Body + Send + 'static,
+    <B as Body>::Data: Send,
+    <B as Body>::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
 {
     let state = Arc::new(state);
-    let make_svc = make_service_fn(move |_| {
+    let listener = TcpListener::bind(addr).await?;
+
+    loop {
+        let (tcp, _) = listener.accept().await?;
+        let io = TokioIo::new(tcp);
+
         let state = Arc::clone(&state);
-        let svc = service_fn(move |req| {
-            let state = Arc::clone(&state);
-            async move { handle_req(req, &state).await }
+        tokio::spawn(async move {
+            let serve = service_fn(move |req| {
+                let state = Arc::clone(&state);
+                async move { Ok::<_, Infallible>(handle_req(req, &state).await) }
+            });
+
+            if let Err(e) = auto::Builder::new(TokioExecutor::new())
+                .serve_connection_with_upgrades(io, serve)
+                .await
+            {
+                log::error!("Error serving connection: {}", e);
+            }
         });
-        async move { Ok::<_, Infallible>(svc) }
-    });
-
-    Server::try_bind(&addr)?.serve(make_svc).await?;
-
-    Ok(())
+    }
 }
 
 // Work around the lack of HKT bounds.

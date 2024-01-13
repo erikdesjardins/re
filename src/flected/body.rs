@@ -1,7 +1,5 @@
 use crate::flected::as_ref::{ForwardAsRef, ReindexAsRef};
-use hyper::body::{HttpBody, SizeHint};
-use hyper::header::HeaderValue;
-use hyper::HeaderMap;
+use hyper::body::{Body, Frame, SizeHint};
 use std::convert::Infallible;
 use std::io::Cursor;
 use std::mem;
@@ -57,14 +55,14 @@ impl ArcBody {
     }
 }
 
-impl HttpBody for ArcBody {
+impl Body for ArcBody {
     type Data = Cursor<ReindexAsRef<ForwardAsRef<ArcAsRefBytes>, Range<usize>>>;
     type Error = Infallible;
 
-    fn poll_data(
+    fn poll_frame(
         mut self: Pin<&mut Self>,
         _: &mut Context<'_>,
-    ) -> Poll<Option<Result<Self::Data, Self::Error>>> {
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
         let Self { data, range } = &mut *self;
 
         // windows/linux can't handle write calls bigger than this
@@ -84,17 +82,10 @@ impl HttpBody for ArcBody {
             None => return Poll::Ready(None),
         };
 
-        Poll::Ready(Some(Ok(Cursor::new(ReindexAsRef(
+        Poll::Ready(Some(Ok(Frame::data(Cursor::new(ReindexAsRef(
             ForwardAsRef(data),
             range,
-        )))))
-    }
-
-    fn poll_trailers(
-        self: Pin<&mut Self>,
-        _: &mut Context<'_>,
-    ) -> Poll<Result<Option<HeaderMap<HeaderValue>>, Self::Error>> {
-        Poll::Ready(Ok(None))
+        ))))))
     }
 
     fn is_end_stream(&self) -> bool {
