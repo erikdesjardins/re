@@ -3,7 +3,6 @@ use crate::directed::routes::{respond_to_request, State};
 use crate::err::Error;
 use crate::http;
 
-mod file;
 pub mod opt;
 mod redir;
 mod routes;

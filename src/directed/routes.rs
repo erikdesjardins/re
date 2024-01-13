@@ -1,5 +1,4 @@
-use crate::body::empty;
-use crate::directed::file;
+use crate::body;
 use crate::directed::redir::{Action, Rules};
 use crate::err::Error;
 use crate::http::ProxyClient;
@@ -30,7 +29,7 @@ pub async fn respond_to_request(
                 }
                 Err(e) => {
                     log::warn!("{} -> [proxy error] {} : {}", req_uri, uri, e);
-                    let mut resp = Response::new(empty());
+                    let mut resp = Response::new(body::empty());
                     *resp.status_mut() = StatusCode::BAD_GATEWAY;
                     resp
                 }
@@ -51,11 +50,11 @@ pub async fn respond_to_request(
             match found_file {
                 Ok((found_path, file)) => {
                     log::info!("{} -> {}", req.uri(), found_path.display());
-                    Response::new(file::body_stream(file).map_err(Error::from).boxed())
+                    Response::new(body::from_file(file).map_err(Error::from).boxed())
                 }
                 Err((path, e)) => {
                     log::warn!("{} -> [file error] {} : {}", req.uri(), path.display(), e);
-                    let mut resp = Response::new(empty());
+                    let mut resp = Response::new(body::empty());
                     *resp.status_mut() = StatusCode::NOT_FOUND;
                     resp
                 }
@@ -63,19 +62,19 @@ pub async fn respond_to_request(
         }
         Some(Ok(Action::Status(status))) => {
             log::info!("{} -> {}", req.uri(), status);
-            let mut resp = Response::new(empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = status;
             resp
         }
         Some(Err(e)) => {
             log::warn!("{} -> [internal error] : {}", req.uri(), e);
-            let mut resp = Response::new(empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
             resp
         }
         None => {
             log::warn!("{} -> [no match]", req.uri());
-            let mut resp = Response::new(empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::BAD_GATEWAY;
             resp
         }

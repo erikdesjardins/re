@@ -1,4 +1,4 @@
-use crate::body::empty;
+use crate::body;
 use crate::http::ProxyClient;
 use crate::transmitted::path::extract_uri_from_path;
 use http_body_util::combinators::BoxBody;
@@ -25,7 +25,7 @@ pub async fn respond_to_request(
 
     if req.method() == Method::OPTIONS {
         log::info!("{} {} -> [preflight response]", req.method(), req.uri());
-        let mut resp = Response::new(empty());
+        let mut resp = Response::new(body::empty());
         resp.headers_mut()
             .append(header::ACCESS_CONTROL_ALLOW_ORIGIN, ANY);
         resp.headers_mut()
@@ -38,7 +38,7 @@ pub async fn respond_to_request(
             Some(k) => k,
             None => {
                 log::info!("{} {} -> [missing key]", req.method(), req.uri());
-                let mut resp = Response::new(empty());
+                let mut resp = Response::new(body::empty());
                 *resp.status_mut() = StatusCode::UNAUTHORIZED;
                 return resp;
             }
@@ -51,7 +51,7 @@ pub async fn respond_to_request(
             Ok(()) => {}
             Err(ring::error::Unspecified) => {
                 log::warn!("{} {} -> [invalid key]", req.method(), req.uri());
-                let mut resp = Response::new(empty());
+                let mut resp = Response::new(body::empty());
                 *resp.status_mut() = StatusCode::UNAUTHORIZED;
                 return resp;
             }
@@ -61,7 +61,7 @@ pub async fn respond_to_request(
     let uri = match extract_uri_from_path(req.uri()) {
         None => {
             log::warn!("{} {} -> [missing url]", req.method(), req.uri());
-            let mut resp = Response::new(empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::BAD_REQUEST;
             return resp;
         }
@@ -73,7 +73,7 @@ pub async fn respond_to_request(
                 unparsed,
                 e
             );
-            let mut resp = Response::new(empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::BAD_REQUEST;
             return resp;
         }
@@ -86,7 +86,7 @@ pub async fn respond_to_request(
         Ok(r) => r,
         Err(e) => {
             log::error!("{} {} -> [proxy error] {}", orig_method, orig_uri, e);
-            let mut resp = Response::new(empty());
+            let mut resp = Response::new(body::empty());
             *resp.status_mut() = StatusCode::BAD_GATEWAY;
             return resp;
         }
