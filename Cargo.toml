@@ -1,12 +1,12 @@
 [package]
 name = "re"
-version = "0.4.2"
+version = "0.4.3"
 description = "Network utility toolkit. re{layed,flected,directed,transmitted,vealed}"
 edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-env_logger = { version = "0.10", default-features = false, features = ["humantime"] }
+env_logger = { version = "0.11", default-features = false, features = ["humantime"] }
 futures = "0.3"
 headers = "0.4"
 http = "1"
@@ -21,6 +21,7 @@ sha2 = "0.10"
 tempfile = "3"
 thiserror = "1"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
+tokio-util = { version = "0.7", features = ["io"] }
 
 [profile.release]
 panic = "abort"
