@@ -1,7 +1,7 @@
 use hyper::body::{Body, Incoming};
 use hyper::service::service_fn;
 use hyper::{Request, Response};
-use hyper_rustls::{HttpsConnector, HttpsConnectorBuilder};
+use hyper_rustls::HttpsConnector;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::client::legacy::Client;
 use hyper_util::rt::{TokioExecutor, TokioIo};
@@ -17,7 +17,7 @@ pub type ProxyClient = Client<HttpsConnector<HttpConnector>, Incoming>;
 
 pub fn make_client() -> Result<ProxyClient, io::Error> {
     Ok(Client::builder(TokioExecutor::new()).build(
-        HttpsConnectorBuilder::new()
+        HttpsConnector::<()>::builder()
             .with_native_roots()?
             .https_or_http()
             .enable_http1()
