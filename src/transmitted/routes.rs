@@ -80,6 +80,24 @@ pub async fn respond_to_request(
         Some(Ok(u)) => u,
     };
 
+    match uri.host().map(|h| h.parse()) {
+        None => {
+            log::warn!("{} {} -> [missing host]", req.method(), req.uri());
+            let mut resp = Response::new(body::empty());
+            *resp.status_mut() = StatusCode::BAD_REQUEST;
+            return resp;
+        }
+        Some(Err(e)) => {
+            log::warn!("{} {} -> [invalid host] {}", req.method(), req.uri(), e);
+            let mut resp = Response::new(body::empty());
+            *resp.status_mut() = StatusCode::BAD_REQUEST;
+            return resp;
+        }
+        Some(Ok(host)) => {
+            req.headers_mut().insert(header::HOST, host);
+        }
+    }
+
     let orig_method = req.method().clone();
     let orig_uri = mem::replace(req.uri_mut(), uri);
     let mut resp = match state.client.request(req).await {
