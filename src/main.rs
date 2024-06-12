@@ -10,12 +10,10 @@ mod transmitted;
 mod vealed;
 
 mod body;
-mod config;
 mod err;
 mod future;
 mod http;
 mod opt;
-mod rw;
 mod tcp;
 
 #[tokio::main]
