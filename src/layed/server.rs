@@ -4,7 +4,6 @@ use crate::layed::config::{QUEUE_TIMEOUT, SERVER_ACCEPT_BACKOFF_SECS};
 use crate::layed::heartbeat;
 use crate::layed::magic;
 use crate::layed::stream::spawn_idle;
-use crate::rw;
 use crate::tcp;
 use futures::future::{select, Either};
 use futures::stream;
@@ -14,6 +13,7 @@ use std::net::SocketAddr;
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::time::Duration;
+use tokio::io::copy_bidirectional;
 use tokio::net::TcpListener;
 use tokio::time::error::Elapsed;
 use tokio::time::{sleep, timeout};
@@ -76,7 +76,7 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
 
     'public: loop {
         let mut backoff = Backoff::new(SERVER_ACCEPT_BACKOFF_SECS);
-        let public = loop {
+        let mut public = loop {
             match tcp::accept(&mut public_connections).await {
                 Ok(public) => break public,
                 Err(e) => {
@@ -89,7 +89,7 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
             }
         };
 
-        let gateway = loop {
+        let mut gateway = loop {
             // drop public connections which wait for too long, to avoid unlimited queuing when no gateway is connected
             let mut gateway = match timeout(QUEUE_TIMEOUT, gateway_connections.next()).await {
                 Ok(Some(gateway)) => gateway,
@@ -125,7 +125,7 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
 
         log::info!("Spawning ({} active)", ACTIVE.fetch_add(1, Relaxed) + 1);
         tokio::spawn(async move {
-            let done = rw::conjoin(public, gateway).await;
+            let done = copy_bidirectional(&mut public, &mut gateway).await;
             let active = ACTIVE.fetch_sub(1, Relaxed) - 1;
             match done {
                 Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),

@@ -1,8 +1,8 @@
-use crate::rw;
 use crate::tcp;
 use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
+use tokio::io::copy_bidirectional;
 use tokio::net::TcpListener;
 
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
@@ -12,9 +12,9 @@ pub async fn run(from_addr: SocketAddr, to_addrs: &[SocketAddr]) -> Result<(), i
     let mut connections = TcpListener::bind(from_addr).await?;
 
     loop {
-        let inbound = tcp::accept(&mut connections).await?;
+        let mut inbound = tcp::accept(&mut connections).await?;
 
-        let outbound = match tcp::connect(to_addrs).await {
+        let mut outbound = match tcp::connect(to_addrs).await {
             Ok(outbound) => outbound,
             Err(e) => {
                 log::error!("Failed to connect: {}", e);
@@ -24,7 +24,7 @@ pub async fn run(from_addr: SocketAddr, to_addrs: &[SocketAddr]) -> Result<(), i
 
         log::info!("Spawning ({} active)", ACTIVE.fetch_add(1, Relaxed) + 1);
         tokio::spawn(async move {
-            let done = rw::conjoin(inbound, outbound).await;
+            let done = copy_bidirectional(&mut inbound, &mut outbound).await;
             let active = ACTIVE.fetch_sub(1, Relaxed) - 1;
             match done {
                 Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),
