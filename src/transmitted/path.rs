@@ -1,5 +1,5 @@
-use hyper::http::uri::InvalidUri;
 use hyper::Uri;
+use hyper::http::uri::InvalidUri;
 use std::borrow::Cow;
 use std::str::FromStr;
 

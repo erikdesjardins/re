@@ -1,5 +1,5 @@
 use crate::directed::redir::Rules;
-use crate::directed::routes::{respond_to_request, State};
+use crate::directed::routes::{State, respond_to_request};
 use crate::err::Error;
 use crate::http;
 

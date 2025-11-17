@@ -73,8 +73,8 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
                 .get(HOST)
                 .and_then(|h| h.to_str().ok())
                 .unwrap_or("example.com");
-            let mut resp = Response::new(ArcBody::new(
-                format!(concat!(
+            let mut resp = Response::new(ArcBody::new(format!(
+                concat!(
                     "<!DOCTYPE html>",
                     "<html>",
                     "<head></head>",
@@ -88,8 +88,10 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
                     "/>",
                     "</body>",
                     "</html>",
-                ), path = path, host = host)
-            ));
+                ),
+                path = path,
+                host = host
+            )));
             *resp.status_mut() = StatusCode::NOT_FOUND;
             resp
         }
