@@ -1,3 +1,4 @@
+use crate::config::COPY_BUFFER_SIZE;
 use crate::layed::backoff::Backoff;
 use crate::layed::config::CLIENT_BACKOFF_SECS;
 use crate::layed::heartbeat;
@@ -7,18 +8,26 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::time::Duration;
-use tokio::io::copy_bidirectional;
+use tokio::io::AsyncRead;
+use tokio::io::AsyncWrite;
+use tokio::io::copy_bidirectional_with_sizes;
 use tokio::time::sleep;
 
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
 
-pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> ! {
+pub async fn run<Conn>(
+    connect_to_gateway: impl AsyncFn() -> Result<Conn, io::Error>,
+    private_addrs: &[SocketAddr],
+) -> !
+where
+    Conn: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     let mut backoff = Backoff::new(CLIENT_BACKOFF_SECS);
 
     loop {
         let one_round = async {
             log::info!("Connecting to gateway");
-            let mut gateway = tcp::connect(gateway_addrs).await?;
+            let mut gateway = connect_to_gateway().await?;
 
             log::info!("Sending early handshake");
             magic::write_to(&mut gateway).await?;
@@ -34,7 +43,13 @@ pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> 
 
             log::info!("Spawning ({} active)", ACTIVE.fetch_add(1, Relaxed) + 1);
             tokio::spawn(async move {
-                let done = copy_bidirectional(&mut gateway, &mut private).await;
+                let done = copy_bidirectional_with_sizes(
+                    &mut gateway,
+                    &mut private,
+                    COPY_BUFFER_SIZE,
+                    COPY_BUFFER_SIZE,
+                )
+                .await;
                 let active = ACTIVE.fetch_sub(1, Relaxed) - 1;
                 match done {
                     Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),

@@ -1,6 +1,6 @@
 use crate::err::Error;
 use crate::http;
-use crate::transmitted::routes::{respond_to_request, State};
+use crate::transmitted::routes::{State, respond_to_request};
 use sha2::{Digest, Sha256};
 
 pub mod opt;

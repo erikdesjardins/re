@@ -2,7 +2,6 @@ use crate::err::Error;
 use crate::flected::routes::respond_to_request;
 use crate::http;
 
-mod as_ref;
 mod body;
 mod file;
 pub mod opt;

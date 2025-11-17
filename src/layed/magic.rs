@@ -15,5 +15,7 @@ pub async fn read_from(mut reader: impl AsyncRead + Unpin) -> Result<(), io::Err
 }
 
 pub async fn write_to(mut writer: impl AsyncWrite + Unpin) -> Result<(), io::Error> {
-    writer.write_all(&MAGIC).await
+    writer.write_all(&MAGIC).await?;
+    writer.flush().await?;
+    Ok(())
 }

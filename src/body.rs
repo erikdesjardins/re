@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
-use http_body_util::combinators::BoxBody;
 use http_body_util::StreamBody;
+use http_body_util::combinators::BoxBody;
 use http_body_util::{BodyExt, Empty};
 use hyper::body::{Body, Bytes, Frame};
 use std::io;

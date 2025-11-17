@@ -1,11 +1,11 @@
 use crate::body;
 use crate::http::ProxyClient;
 use crate::transmitted::path::extract_uri_from_path;
-use http_body_util::combinators::BoxBody;
 use http_body_util::BodyExt;
+use http_body_util::combinators::BoxBody;
 use hyper::body::{Bytes, Incoming};
 use hyper::http::HeaderValue;
-use hyper::{header, Method, Request, Response, StatusCode};
+use hyper::{Method, Request, Response, StatusCode, header};
 use sha2::{Digest, Sha256};
 use std::mem;
 

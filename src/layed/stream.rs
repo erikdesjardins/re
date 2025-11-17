@@ -1,7 +1,7 @@
 use futures::stream;
 use futures::{Stream, StreamExt};
 use std::mem::ManuallyDrop;
-use std::pin::{pin, Pin};
+use std::pin::{Pin, pin};
 use std::task::Context;
 use std::task::Poll;
 use tokio::sync::mpsc;

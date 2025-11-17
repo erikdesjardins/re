@@ -23,10 +23,13 @@ pub async fn write_forever(mut writer: impl AsyncWrite + Unpin) -> Result<Infall
     let mut heartbeat = interval(HEARTBEAT_TIMEOUT / 2);
     loop {
         writer.write_all(&HEARTBEAT).await?;
+        writer.flush().await?;
         heartbeat.tick().await;
     }
 }
 
 pub async fn write_final(mut writer: impl AsyncWrite + Unpin) -> Result<(), io::Error> {
-    writer.write_all(&EXIT).await
+    writer.write_all(&EXIT).await?;
+    writer.flush().await?;
+    Ok(())
 }
