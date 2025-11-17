@@ -1,14 +1,14 @@
-use crate::flected::body::ArcBody;
+use crate::flected::body::BytesBody;
 use crate::flected::file::write_to_mmap;
 use crate::flected::routes::State;
+use bytes::Bytes;
 use headers::{AcceptRanges, ContentRange, HeaderMapExt, Range};
 use hyper::body::Incoming;
 use hyper::header::HOST;
 use hyper::{Request, Response, StatusCode};
 use std::collections::Bound;
-use std::sync::Arc;
 
-pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
+pub async fn get(req: Request<Incoming>, state: &State) -> Response<BytesBody> {
     let file = state.files.read().await.get(req.uri().path()).cloned();
     match file {
         Some(file) => match req
@@ -28,8 +28,11 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
                     Bound::Excluded(end) => end as usize,
                     Bound::Unbounded => file_len,
                 };
-                match ArcBody::from_arc_with_range(file, start_inclusive..end_exclusive) {
-                    Ok(body) => {
+                match file
+                    .get(start_inclusive..end_exclusive)
+                    .map(|s| file.slice_ref(s))
+                {
+                    Some(body) => {
                         log::info!(
                             "GET {} -> [found range {}..{} bytes of {}]",
                             req.uri(),
@@ -37,7 +40,7 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
                             end_exclusive,
                             file_len
                         );
-                        let mut resp = Response::new(body);
+                        let mut resp = Response::new(BytesBody::new(body));
                         *resp.status_mut() = StatusCode::PARTIAL_CONTENT;
                         resp.headers_mut().typed_insert(
                             ContentRange::bytes(
@@ -48,9 +51,9 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
                         );
                         resp
                     }
-                    Err(_) => {
+                    None => {
                         log::info!("GET {} -> [bad range]", req.uri());
-                        let mut resp = Response::new(ArcBody::empty());
+                        let mut resp = Response::new(BytesBody::empty());
                         *resp.status_mut() = StatusCode::RANGE_NOT_SATISFIABLE;
                         resp.headers_mut()
                             .typed_insert(ContentRange::unsatisfied_bytes(file_len as u64));
@@ -60,7 +63,7 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
             }
             None => {
                 log::info!("GET {} -> [found {} bytes]", req.uri(), file.len());
-                let mut resp = Response::new(ArcBody::from_arc(file));
+                let mut resp = Response::new(BytesBody::new(file));
                 resp.headers_mut().typed_insert(AcceptRanges::bytes());
                 resp
             }
@@ -73,7 +76,7 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
                 .get(HOST)
                 .and_then(|h| h.to_str().ok())
                 .unwrap_or("example.com");
-            let mut resp = Response::new(ArcBody::new(format!(
+            let mut resp = Response::new(BytesBody::from(format!(
                 concat!(
                     "<!DOCTYPE html>",
                     "<html>",
@@ -98,14 +101,14 @@ pub async fn get(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
     }
 }
 
-pub async fn post(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
+pub async fn post(req: Request<Incoming>, state: &State) -> Response<BytesBody> {
     log::info!("POST {} -> [start upload]", req.uri());
     let (parts, body) = req.into_parts();
     let file = match write_to_mmap(body).await {
         Ok(f) => f,
         Err(e) => {
             log::warn!("POST {} -> [upload error] {}", parts.uri, e);
-            let mut resp = Response::new(ArcBody::empty());
+            let mut resp = Response::new(BytesBody::empty());
             *resp.status_mut() = StatusCode::INTERNAL_SERVER_ERROR;
             return resp;
         }
@@ -115,20 +118,20 @@ pub async fn post(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
         .files
         .write()
         .await
-        .insert(parts.uri.path().to_string(), Arc::new(file));
-    Response::new(ArcBody::empty())
+        .insert(parts.uri.path().to_string(), Bytes::from_owner(file));
+    Response::new(BytesBody::empty())
 }
 
-pub async fn delete(req: Request<Incoming>, state: &State) -> Response<ArcBody> {
+pub async fn delete(req: Request<Incoming>, state: &State) -> Response<BytesBody> {
     let file = state.files.write().await.remove(req.uri().path());
     match file {
         Some(file) => {
             log::info!("DELETE {} -> [deleted {} bytes]", req.uri(), file.len());
-            Response::new(ArcBody::empty())
+            Response::new(BytesBody::empty())
         }
         None => {
             log::info!("DELETE {} -> [not found]", req.uri());
-            let mut resp = Response::new(ArcBody::empty());
+            let mut resp = Response::new(BytesBody::empty());
             *resp.status_mut() = StatusCode::NOT_FOUND;
             resp
         }
