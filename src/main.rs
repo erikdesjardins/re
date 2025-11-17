@@ -10,6 +10,7 @@ mod transmitted;
 mod vealed;
 
 mod body;
+mod config;
 mod err;
 mod future;
 mod http;

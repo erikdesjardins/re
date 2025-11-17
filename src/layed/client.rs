@@ -1,3 +1,4 @@
+use crate::config::COPY_BUFFER_SIZE;
 use crate::layed::backoff::Backoff;
 use crate::layed::config::CLIENT_BACKOFF_SECS;
 use crate::layed::heartbeat;
@@ -9,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::time::Duration;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncWrite;
-use tokio::io::copy_bidirectional;
+use tokio::io::copy_bidirectional_with_sizes;
 use tokio::time::sleep;
 
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
@@ -42,7 +43,13 @@ where
 
             log::info!("Spawning ({} active)", ACTIVE.fetch_add(1, Relaxed) + 1);
             tokio::spawn(async move {
-                let done = copy_bidirectional(&mut gateway, &mut private).await;
+                let done = copy_bidirectional_with_sizes(
+                    &mut gateway,
+                    &mut private,
+                    COPY_BUFFER_SIZE,
+                    COPY_BUFFER_SIZE,
+                )
+                .await;
                 let active = ACTIVE.fetch_sub(1, Relaxed) - 1;
                 match done {
                     Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),

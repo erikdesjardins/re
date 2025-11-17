@@ -1,3 +1,4 @@
+use crate::config::COPY_BUFFER_SIZE;
 use crate::err::{AppliesTo, IoErrorExt};
 use crate::layed::backoff::Backoff;
 use crate::layed::config::{QUEUE_TIMEOUT, SERVER_ACCEPT_BACKOFF_SECS};
@@ -13,7 +14,7 @@ use std::net::SocketAddr;
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::time::Duration;
-use tokio::io::{AsyncRead, AsyncWrite, copy_bidirectional};
+use tokio::io::{AsyncRead, AsyncWrite, copy_bidirectional_with_sizes};
 use tokio::net::TcpListener;
 use tokio::time::error::Elapsed;
 use tokio::time::{sleep, timeout};
@@ -139,7 +140,13 @@ where
 
         log::info!("Spawning ({} active)", ACTIVE.fetch_add(1, Relaxed) + 1);
         tokio::spawn(async move {
-            let done = copy_bidirectional(&mut public, &mut gateway).await;
+            let done = copy_bidirectional_with_sizes(
+                &mut public,
+                &mut gateway,
+                COPY_BUFFER_SIZE,
+                COPY_BUFFER_SIZE,
+            )
+            .await;
             let active = ACTIVE.fetch_sub(1, Relaxed) - 1;
             match done {
                 Ok((down, up)) => log::info!("Closing ({} active): {}/{}", active, down, up),
