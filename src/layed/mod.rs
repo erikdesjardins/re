@@ -49,7 +49,7 @@ pub async fn main(options: opt::Options) -> Result<(), std::io::Error> {
                 let uri = http::uri::Builder::new()
                     .scheme(scheme)
                     .authority(gateway.orig())
-                    .path_and_query("/ws")
+                    .path_and_query("/ws/")
                     .build()
                     .unwrap();
                 client::run(|| websocket::connect(&uri, WS_MAX_MESSAGE_SIZE), &private).await;
