@@ -1,4 +1,3 @@
-use crate::layed::config::WS_MAX_MESSAGE_SIZE;
 use crate::tcp;
 use crate::websocket;
 
@@ -22,10 +21,7 @@ pub async fn main(options: opt::Options) -> Result<(), std::io::Error> {
         } => {
             if websocket {
                 server::run(&gateway, &public, async |mut listener| {
-                    (
-                        websocket::accept(&mut listener, WS_MAX_MESSAGE_SIZE).await,
-                        listener,
-                    )
+                    (websocket::accept(&mut listener).await, listener)
                 })
                 .await?;
             } else {
@@ -52,7 +48,7 @@ pub async fn main(options: opt::Options) -> Result<(), std::io::Error> {
                     .path_and_query("/ws/")
                     .build()
                     .unwrap();
-                client::run(|| websocket::connect(&uri, WS_MAX_MESSAGE_SIZE), &private).await;
+                client::run(|| websocket::connect(&uri), &private).await;
             }
             opt::WebSocketEnabled::Off => {
                 client::run(|| tcp::connect(&gateway), &private).await;
