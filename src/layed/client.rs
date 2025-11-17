@@ -7,18 +7,26 @@ use std::io;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::time::Duration;
+use tokio::io::AsyncRead;
+use tokio::io::AsyncWrite;
 use tokio::io::copy_bidirectional;
 use tokio::time::sleep;
 
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
 
-pub async fn run(gateway_addrs: &[SocketAddr], private_addrs: &[SocketAddr]) -> ! {
+pub async fn run<Conn>(
+    connect_to_gateway: impl AsyncFn() -> Result<Conn, io::Error>,
+    private_addrs: &[SocketAddr],
+) -> !
+where
+    Conn: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     let mut backoff = Backoff::new(CLIENT_BACKOFF_SECS);
 
     loop {
         let one_round = async {
             log::info!("Connecting to gateway");
-            let mut gateway = tcp::connect(gateway_addrs).await?;
+            let mut gateway = connect_to_gateway().await?;
 
             log::info!("Sending early handshake");
             magic::write_to(&mut gateway).await?;

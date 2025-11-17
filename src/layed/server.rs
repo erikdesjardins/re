@@ -5,22 +5,30 @@ use crate::layed::heartbeat;
 use crate::layed::magic;
 use crate::layed::stream::spawn_idle;
 use crate::tcp;
-use futures::future::{select, Either};
-use futures::stream;
 use futures::StreamExt;
+use futures::future::{Either, select};
+use futures::stream;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::pin;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 use std::time::Duration;
-use tokio::io::copy_bidirectional;
+use tokio::io::{AsyncRead, AsyncWrite, copy_bidirectional};
 use tokio::net::TcpListener;
 use tokio::time::error::Elapsed;
 use tokio::time::{sleep, timeout};
 
 static ACTIVE: AtomicUsize = AtomicUsize::new(0);
 
-pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<(), io::Error> {
+pub async fn run<Fut, Conn>(
+    gateway_addr: &SocketAddr,
+    public_addr: &SocketAddr,
+    accept_gateway_conn: impl Fn(TcpListener) -> Fut + Send + 'static,
+) -> Result<(), io::Error>
+where
+    Fut: Future<Output = (Result<Conn, io::Error>, TcpListener)> + Send,
+    Conn: AsyncRead + AsyncWrite + Unpin + Send + 'static,
+{
     log::info!("Binding to gateway: {}", gateway_addr);
     let gateway_connections = TcpListener::bind(gateway_addr).await?;
     log::info!("Binding to public: {}", public_addr);
@@ -28,12 +36,15 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
 
     let mut gateway_connections = pin!(spawn_idle(|requests| {
         stream::unfold(
-            (gateway_connections, requests),
-            |(mut gateway_connections, mut requests)| async {
+            (gateway_connections, accept_gateway_conn, requests),
+            |(mut gateway_connections, accept_gateway_conn, mut requests)| async {
                 loop {
                     let mut backoff = Backoff::new(SERVER_ACCEPT_BACKOFF_SECS);
                     let mut gateway = loop {
-                        match tcp::accept(&mut gateway_connections).await {
+                        let result;
+                        (result, gateway_connections) =
+                            accept_gateway_conn(gateway_connections).await;
+                        match result {
                             Ok(gateway) => break gateway,
                             Err(e) => {
                                 log::error!("Error accepting gateway connections: {}", e);
@@ -68,7 +79,10 @@ pub async fn run(gateway_addr: &SocketAddr, public_addr: &SocketAddr) -> Result<
                         }
                     };
 
-                    return Some(((token, gateway), (gateway_connections, requests)));
+                    return Some((
+                        (token, gateway),
+                        (gateway_connections, accept_gateway_conn, requests),
+                    ));
                 }
             },
         )

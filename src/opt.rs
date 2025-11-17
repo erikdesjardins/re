@@ -25,13 +25,26 @@ pub enum Command {
 }
 
 #[derive(Clone, Debug)]
-pub struct SocketAddrsFromDns(Vec<SocketAddr>);
+pub struct SocketAddrsFromDns {
+    orig: String,
+    addrs: Vec<SocketAddr>,
+}
+
+impl SocketAddrsFromDns {
+    pub fn orig(&self) -> &str {
+        &self.orig
+    }
+
+    pub fn addrs(&self) -> &[SocketAddr] {
+        &self.addrs
+    }
+}
 
 impl Deref for SocketAddrsFromDns {
     type Target = [SocketAddr];
 
     fn deref(&self) -> &Self::Target {
-        &self.0
+        self.addrs()
     }
 }
 
@@ -45,7 +58,10 @@ impl FromStr for SocketAddrsFromDns {
                 io::ErrorKind::AddrNotAvailable,
                 "Resolved to zero addresses",
             )),
-            _ => Ok(Self(addrs)),
+            _ => Ok(Self {
+                orig: arg.to_string(),
+                addrs,
+            }),
         }
     }
 }

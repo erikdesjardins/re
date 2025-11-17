@@ -15,6 +15,7 @@ mod future;
 mod http;
 mod opt;
 mod tcp;
+mod websocket;
 
 #[tokio::main]
 async fn main() -> Result<(), err::DisplayError> {
