@@ -1,5 +1,4 @@
 use crate::layed::config::HEARTBEAT_TIMEOUT;
-use std::convert::Infallible;
 use std::io;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tokio::time::{interval, timeout};
@@ -19,7 +18,7 @@ pub async fn read_from(mut reader: impl AsyncRead + Unpin) -> Result<(), io::Err
     }
 }
 
-pub async fn write_forever(mut writer: impl AsyncWrite + Unpin) -> Result<Infallible, io::Error> {
+pub async fn write_forever(mut writer: impl AsyncWrite + Unpin) -> Result<!, io::Error> {
     let mut heartbeat = interval(HEARTBEAT_TIMEOUT / 2);
     loop {
         writer.write_all(&HEARTBEAT).await?;

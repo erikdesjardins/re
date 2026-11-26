@@ -6,7 +6,6 @@ use hyper_util::client::legacy::Client;
 use hyper_util::client::legacy::connect::HttpConnector;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto;
-use std::convert::Infallible;
 use std::future::Future;
 use std::io;
 use std::net::SocketAddr;
@@ -49,7 +48,7 @@ where
         tokio::spawn(async move {
             let serve = service_fn(move |req| {
                 let state = Arc::clone(&state);
-                async move { Ok::<_, Infallible>(handle_req(req, &state).await) }
+                async move { Ok::<_, !>(handle_req(req, &state).await) }
             });
 
             if let Err(e) = auto::Builder::new(TokioExecutor::new())
