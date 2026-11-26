@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use hyper::body::{Body, Frame, SizeHint};
+use std::cmp;
 use std::task::Context;
-use std::{cmp, convert::Infallible};
 use tokio::macros::support::{Pin, Poll};
 
 pub struct BytesBody(Bytes);
@@ -24,7 +24,7 @@ impl From<String> for BytesBody {
 
 impl Body for BytesBody {
     type Data = Bytes;
-    type Error = Infallible;
+    type Error = !;
 
     fn poll_frame(
         mut self: Pin<&mut Self>,

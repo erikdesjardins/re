@@ -1,6 +1,6 @@
 [package]
 name = "re"
-version = "0.5.2"
+version = "0.5.3"
 description = "Network utility toolkit. re{layed,flected,directed,transmitted,vealed}"
 edition = "2024"
 
@@ -18,11 +18,10 @@ hyper-util = { version = "0.1", features = ["client", "server-auto"] }
 log = "0.4"
 memmap2 = "0.9"
 ring = "0.17"
-sha2 = "0.10"
 tempfile = "3"
 thiserror = "2"
 tokio = { version = "1", features = ["fs", "io-util", "macros", "net", "rt", "rt-multi-thread", "sync", "time"] }
-tokio-tungstenite = { version = "0.28.0", features = ["rustls-tls-native-roots"] }
+tokio-tungstenite = { version = "0.30", features = ["rustls-tls-native-roots"] }
 tokio-util = { version = "0.7", features = ["io"] }
 
 [profile.release]
