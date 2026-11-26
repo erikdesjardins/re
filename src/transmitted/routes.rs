@@ -1,17 +1,17 @@
 use crate::body;
 use crate::http::ProxyClient;
 use crate::transmitted::path::extract_uri_from_path;
+use crate::transmitted::secret;
 use http_body_util::BodyExt;
 use http_body_util::combinators::BoxBody;
 use hyper::body::{Bytes, Incoming};
 use hyper::http::HeaderValue;
 use hyper::{Method, Request, Response, StatusCode, header};
-use sha2::{Digest, Sha256};
 use std::mem;
 
 pub struct State {
     pub client: ProxyClient,
-    pub secret_key_hash: Option<Box<[u8]>>,
+    pub secret_key_hash: Option<secret::Key>,
 }
 
 #[allow(clippy::declare_interior_mutable_const)]
@@ -43,13 +43,9 @@ pub async fn respond_to_request(
                 return resp;
             }
         };
-        let provided_key_hash = Sha256::digest(provided_key);
-        match ring::constant_time::verify_slices_are_equal(
-            provided_key_hash.as_slice(),
-            secret_key_hash,
-        ) {
+        match secret_key_hash.verify(provided_key.as_bytes()) {
             Ok(()) => {}
-            Err(ring::error::Unspecified) => {
+            Err(()) => {
                 log::warn!("{} {} -> [invalid key]", req.method(), req.uri());
                 let mut resp = Response::new(body::empty());
                 *resp.status_mut() = StatusCode::UNAUTHORIZED;
